@@ -127,7 +127,7 @@ def divider():
 # Banner & headers
 # ---------------------------------------------------------------------------
 
-LOGO = r"""
+VORTEX_ART = r"""
                      @@@         
             @      @@@@@@@@@@@   
           @@     @@       @@@@@@ 
@@ -146,61 +146,52 @@ LOGO = r"""
      @@@@@@@@@                   
 """
 
+LOGO = r"""
+//    ____   ____________ ____________________________________  ___
+//    \   \ /   /\_____  \\______   \__    ___/\_   _____/\   \/  /
+//     \   Y   /  /   |   \|       _/ |    |    |    __)_  \     / 
+//      \     /  /    |    \    |   \ |    |    |        \ /     \ 
+//       \___/   \_______  /____|_  / |____|   /_______  //___/\  \
+//                       \/       \/                   \/       \_/
+"""
+
 TAGLINE = "Multi-tool OSINT / GEOSINT reconnaissance framework"
 
 
 def show_banner(version: str):
-    """Print the main VortexOSINT banner with the custom vortex logo."""
+    """Print the main VortexOSINT banner with unified cyan/blue colors."""
+    art_lines = [line.rstrip("\r") for line in VORTEX_ART.splitlines() if line.strip()]
     logo_lines = [line.rstrip("\r") for line in LOGO.splitlines() if line.strip()]
-    side_info = {
-        5: ("V O R T E X   O S I N T", "bold bright_cyan"),
-        6: ("-------------------------------" if _box_is_ascii() else "───────────────────────────────", "dim bright_blue"),
-        7: ("Multi-tool OSINT / GEOSINT Suite", "bold white"),
-        8: (f"v{version}  |  7 Modules  |  33 Tools", "cyan"),
-        9: ("github.com/abysth/vortexosint", "dim magenta"),
-    }
+    banner_width = max(len(l) for l in logo_lines)
 
     console = get_console()
     if console is not None:
-        gradient = [
-            "bold bright_cyan",
-            "bold bright_cyan",
-            "bold cyan",
-            "bold cyan",
-            "bold bright_blue",
-            "bold bright_blue",
-            "bold blue",
-            "bold blue",
-            "bold magenta",
-            "bold magenta",
-            "bold bright_magenta",
-            "bold bright_magenta",
-            "bold magenta",
-            "bold blue",
-            "bold bright_blue",
-            "bold cyan",
-        ]
         body = Text()
-        for i, line in enumerate(logo_lines):
-            padded = line.ljust(35)
-            body.append(padded, style=gradient[i % len(gradient)])
-            if i in side_info:
-                label, style = side_info[i]
-                body.append("  " + label, style=style)
-            if i < len(logo_lines) - 1:
-                body.append("\n")
+        for line in art_lines:
+            body.append(line.center(banner_width) + "\n", style="bold cyan")
+        body.append("\n")
+        for line in logo_lines:
+            body.append(line + "\n", style="bold bright_cyan")
+        body.append("\n")
+        body.append(f"{TAGLINE}".center(banner_width) + "\n", style="bold white")
+        body.append(
+            f"v{version}  |  github.com/abysth/vortexosint".center(banner_width),
+            style="dim cyan",
+        )
         console.print(
             Panel(
                 body,
                 border_style="bright_blue",
                 box=_box(),
-                padding=(0, 2),
+                padding=(1, 3),
             )
         )
     else:
-        for i, line in enumerate(logo_lines):
-            extra = f"  {side_info[i][0]}" if i in side_info else ""
-            print(Colors.cyan(line.ljust(35)) + extra)
+        for line in art_lines:
+            print(Colors.cyan(line.center(banner_width)))
+        print(Colors.cyan(LOGO))
+        print(Colors.cyan(f"  {TAGLINE}"))
+        print(Colors.dim(f"  Version: {version}  |  https://github.com/abysth/vortexosint"))
         print()
 
 
@@ -377,14 +368,14 @@ RETRO_LINK = "https://github.com/abysth/vortexosint"
 
 
 def show_retro_title():
-    """Centered title block with cyan/magenta accents."""
+    """Centered title block in unified cyan/blue."""
     console = get_console()
     if console is not None:
         width = console.width or 80
         console.print("VortexOSINT Multi-Tool".center(width),
                       style="bold bright_cyan", markup=False, highlight=False)
         console.print(f"[{RETRO_LINK}]".center(width),
-                      style="dim magenta", markup=False, highlight=False)
+                      style="dim cyan", markup=False, highlight=False)
     else:
         print(Colors.colorize("VortexOSINT Multi-Tool".center(70),
                               Colors.BOLD + Colors.BRIGHT_BLUE))
@@ -460,10 +451,10 @@ def show_retro_nav(has_next, has_back):
 
 
 def retro_input():
-    """Styled prompt. Returns stripped input, or None on EOF."""
+    """Unified cyan/blue prompt. Returns stripped input, or None on EOF."""
     prompt = (
         f"{Colors.BRIGHT_BLUE}({Colors.BOLD}{Colors.BRIGHT_CYAN}vortex"
-        f"{Colors.RESET}{Colors.BRIGHT_BLUE})-[{Colors.MAGENTA}~/menu"
+        f"{Colors.RESET}{Colors.BRIGHT_BLUE})-[{Colors.CYAN}~/menu"
         f"{Colors.BRIGHT_BLUE}]$ {Colors.RESET}"
     )
     try:
@@ -473,7 +464,7 @@ def retro_input():
 
 
 def show_retro_single(groups):
-    """Single-page menu: framed panel (rich) with high-contrast colors, or ASCII box (fallback)."""
+    """Single-page menu in unified cyan/blue/white: framed panel (rich) or ASCII box (fallback)."""
     console = get_console()
     if console is None:
         width = 74
@@ -487,29 +478,18 @@ def show_retro_single(groups):
                 print("|" + line.ljust(width) + "|")
         print("+" + "-" * width + "+")
         return
-    header_colors = {
-        "MODULES": "bold bright_cyan",
-        "NETWORK": "bold green",
-        "OSINT": "bold cyan",
-        "GEOSINT": "bold bright_blue",
-        "CRYPTO": "bold yellow",
-        "SOCIAL": "bold magenta",
-        "METADATA": "bold blue",
-        "PASSWORD": "bold bright_red",
-    }
     body = Text()
     first = True
     for header, cells in groups:
         if not first:
             body.append("\n")
         first = False
-        h_style = header_colors.get(header.upper(), "bold bright_cyan")
-        body.append(f"-- {header} --\n", style=h_style)
+        body.append(f"-- {header} --\n", style="bold bright_cyan")
         for i in range(0, len(cells), 3):
             for num, label in cells[i:i + 3]:
-                body.append("  [", style="dim")
-                body.append(num, style="bold bright_cyan")
-                body.append("] ", style="dim")
+                body.append("  [", style="dim cyan")
+                body.append(num, style="bold cyan")
+                body.append("] ", style="dim cyan")
                 body.append(f"{label[:17]}".ljust(20), style="white")
             body.append("\n")
     console.print(Panel(body, title="[bold bright_cyan]TOOLS[/]", border_style="bright_blue",
