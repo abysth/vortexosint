@@ -71,6 +71,21 @@ pip install -e .
 pip install vortexosint[full]
 ```
 
+### 🤖 Install with an AI Assistant
+You can also let an AI coding assistant (**Antigravity, Cursor, Claude Code, GitHub Copilot, Codex…**) install and verify everything for you automatically. Just paste this prompt:
+
+```text
+Clone https://github.com/abysth/vortexosint.git, install it with all dependencies (pip install -e ".[full]"), run `python -m vortexosint tuto setup` to verify the environment, and launch `python -m vortexosint`.
+```
+
+### Running the CLI
+You can launch VortexOSINT either with the `vortexosint` command or directly as a Python module (works everywhere even if Python's `Scripts` folder is not in your `PATH`):
+```bash
+python -m vortexosint              # Launch the 2-page interactive menu
+python -m vortexosint tuto setup   # Check Python, packages & .env
+python -m vortexosint <module> ... # Run any module directly
+```
+
 ## 📖 Usage
 
 ### Global Options & Tutorial

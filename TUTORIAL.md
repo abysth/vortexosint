@@ -42,6 +42,22 @@ cd vortexosint
 pip install -e ".[full]"
 ```
 
+### Option C — Installation automatique via une IA (le plus simple !)
+Tu peux aussi tout faire installer par une IA de code (**Antigravity, Cursor, Claude Code, GitHub Copilot, Codex…**) sans rien faire à la main. Copie-colle simplement ce prompt à ton IA :
+
+```text
+Clone https://github.com/abysth/vortexosint.git, installe toutes les dépendances avec `pip install -e ".[full]"`, vérifie l'environnement avec `python -m vortexosint tuto setup` et explique-moi comment lancer `python -m vortexosint`.
+```
+
+### Lancer VortexOSINT depuis Python (`python -m vortexosint`)
+Tu peux lancer l'outil **directement avec Python** (pratique si la commande `vortexosint` n'est pas reconnue dans ton terminal) :
+```bash
+python -m vortexosint                  # Ouvre le menu interactif (2 pages)
+python -m vortexosint tuto setup       # Vérifie ton installation
+python -m vortexosint tuto ssl         # Affiche le tuto d'un outil
+python -m vortexosint ssl --host example.com
+```
+
 ### Ce que chaque dépendance débloque
 | Paquet | Type | Sert à quoi ? |
 |--------|------|---------------|
