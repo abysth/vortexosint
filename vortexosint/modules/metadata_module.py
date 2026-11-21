@@ -3,13 +3,23 @@ Metadata Module - File Metadata Extraction
 """
 
 import argparse
-import json
-import os
-import sys
+import datetime
+import hashlib
+import mimetypes
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+
 from vortexosint.core.colors import Colors
 from vortexosint.core.banner import print_module_banner
+from vortexosint.core.output import (
+    flatten_dict as _flatten_dict,
+    format_dict as _format_dict,
+    format_results_csv as _format_results_csv,
+    format_results_txt as _format_results_txt,
+    output_results as _output_results,
+)
 
 
 def run(args: argparse.Namespace) -> int:
@@ -35,7 +45,7 @@ def run(args: argparse.Namespace) -> int:
         print(f"{Colors.RED}[!] No files specified. Use --file or --dir{Colors.RESET}")
         return 1
 
-    # Filter to only files
+    # Filter to only existing files
     files = [f for f in files if f.is_file()]
 
     if not files:
@@ -56,26 +66,28 @@ def run(args: argparse.Namespace) -> int:
 
 def analyze_file(file_path: Path, args: argparse.Namespace) -> Dict[str, Any]:
     """Analyze a single file."""
+    stat = file_path.stat()
+    ext = file_path.suffix.lower()
     result = {
         'file': str(file_path),
-        'size': file_path.stat().st_size,
-        'modified': file_path.stat().st_mtime,
-        'extension': file_path.suffix.lower(),
+        'size': stat.st_size,
+        'modified': stat.st_mtime,
+        'extension': ext,
         'mime_type': get_mime_type(file_path),
         'findings': {}
     }
 
-    findings = {}
+    findings: Dict[str, Any] = {}
 
     # Basic file info
     findings['basic'] = get_basic_info(file_path)
 
     # EXIF data
-    if args.exif or file_path.suffix.lower() in ['.jpg', '.jpeg', '.tiff', '.tif', '.png', '.webp']:
+    if args.exif or ext in ['.jpg', '.jpeg', '.tiff', '.tif', '.png', '.webp']:
         findings['exif'] = extract_exif(file_path)
 
     # GPS data
-    if args.gps or file_path.suffix.lower() in ['.jpg', '.jpeg', '.tiff', '.tif']:
+    if args.gps or ext in ['.jpg', '.jpeg', '.tiff', '.tif']:
         findings['gps'] = extract_gps(file_path)
 
     # Strings extraction
@@ -86,13 +98,9 @@ def analyze_file(file_path: Path, args: argparse.Namespace) -> Dict[str, Any]:
     findings['hashes'] = calculate_hashes(file_path)
 
     # File-specific analysis
-    if file_path.suffix.lower() == '.pdf':
+    if ext == '.pdf':
         findings['pdf'] = analyze_pdf(file_path)
-    elif file_path.suffix.lower() in ['.doc', '.docx']:
-        findings['office'] = analyze_office(file_path)
-    elif file_path.suffix.lower() in ['.xls', '.xlsx']:
-        findings['office'] = analyze_office(file_path)
-    elif file_path.suffix.lower() in ['.ppt', '.pptx']:
+    elif ext in ['.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx']:
         findings['office'] = analyze_office(file_path)
 
     result['findings'] = findings
@@ -101,14 +109,12 @@ def analyze_file(file_path: Path, args: argparse.Namespace) -> Dict[str, Any]:
 
 def get_mime_type(file_path: Path) -> str:
     """Get MIME type of file."""
-    import mimetypes
     mime, _ = mimetypes.guess_type(str(file_path))
     return mime or 'application/octet-stream'
 
 
 def get_basic_info(file_path: Path) -> Dict[str, Any]:
     """Get basic file information."""
-    import datetime
     stat = file_path.stat()
     return {
         'name': file_path.name,
@@ -123,7 +129,7 @@ def get_basic_info(file_path: Path) -> Dict[str, Any]:
     }
 
 
-def format_size(size: int) -> str:
+def format_size(size: float) -> str:
     """Format file size human-readable."""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if size < 1024:
@@ -133,114 +139,250 @@ def format_size(size: int) -> str:
 
 
 def extract_exif(file_path: Path) -> Dict[str, Any]:
-    """Extract EXIF data from image."""
+    """Extract EXIF data from an image using exifread or Pillow."""
     print(f"  {Colors.YELLOW}[~] Extracting EXIF...{Colors.RESET}")
-    # TODO: Implement actual EXIF extraction (PIL/Pillow, exifread, etc.)
+    raw_tags: Dict[str, str] = {}
+
+    # 1) Prefer exifread for comprehensive EXIF tags
     try:
-        # Stub
-        return {
-            'has_exif': True,
-            'camera': {
-                'make': 'Unknown',
-                'model': 'Unknown',
-                'software': 'Unknown',
-            },
-            'datetime': 'Unknown',
-            'settings': {
-                'aperture': 'Unknown',
-                'shutter_speed': 'Unknown',
-                'iso': 'Unknown',
-                'focal_length': 'Unknown',
-            },
-            'raw_tags': {},
-        }
+        import exifread  # type: ignore
+        with open(file_path, 'rb') as f:
+            tags = exifread.process_file(f, details=False)
+        for k, v in tags.items():
+            if k not in ('JPEGThumbnail', 'TIFFThumbnail', 'Filename', 'EXIF MakerNote'):
+                raw_tags[str(k)] = str(v)[:200]
+    except ImportError:
+        pass
     except Exception as e:
-        return {'error': str(e), 'has_exif': False}
+        return {'has_exif': False, 'error': str(e)}
+
+    # 2) Fallback to Pillow if exifread found nothing or is unavailable
+    if not raw_tags:
+        try:
+            from PIL import Image, ExifTags  # type: ignore
+            with Image.open(file_path) as img:
+                exif = img.getexif()
+                if exif:
+                    for tag_id, value in exif.items():
+                        tag_name = ExifTags.TAGS.get(tag_id, str(tag_id))
+                        raw_tags[str(tag_name)] = str(value)[:200]
+        except ImportError:
+            if not raw_tags:
+                return {'has_exif': False, 'error': 'Neither exifread nor Pillow is installed'}
+        except Exception:
+            pass
+
+    if not raw_tags:
+        return {'has_exif': False}
+
+    def _pick(*keys: str) -> str:
+        for key in keys:
+            if key in raw_tags and raw_tags[key]:
+                return raw_tags[key]
+        return 'Unknown'
+
+    return {
+        'has_exif': True,
+        'camera': {
+            'make': _pick('Image Make', 'Make'),
+            'model': _pick('Image Model', 'Model'),
+            'software': _pick('Image Software', 'Software'),
+        },
+        'datetime': _pick('EXIF DateTimeOriginal', 'Image DateTime', 'DateTimeOriginal', 'DateTime'),
+        'settings': {
+            'aperture': _pick('EXIF FNumber', 'FNumber'),
+            'shutter_speed': _pick('EXIF ExposureTime', 'ExposureTime'),
+            'iso': _pick('EXIF ISOSpeedRatings', 'ISOSpeedRatings'),
+            'focal_length': _pick('EXIF FocalLength', 'FocalLength'),
+        },
+        'tag_count': len(raw_tags),
+        'raw_tags': dict(list(raw_tags.items())[:50]),
+    }
+
+
+def _dms_to_decimal(values: Any, ref: str) -> Optional[float]:
+    """Convert EXIF GPS DMS rational list to signed decimal degrees."""
+    try:
+        def _to_float(x: Any) -> float:
+            if hasattr(x, 'num') and hasattr(x, 'den'):
+                return float(x.num) / float(x.den) if x.den else 0.0
+            return float(x)
+
+        deg = _to_float(values[0])
+        minutes = _to_float(values[1])
+        seconds = _to_float(values[2])
+        dec = deg + (minutes / 60.0) + (seconds / 3600.0)
+        if str(ref).strip().upper() in ('S', 'W'):
+            dec = -dec
+        return round(dec, 6)
+    except Exception:
+        return None
 
 
 def extract_gps(file_path: Path) -> Dict[str, Any]:
-    """Extract GPS coordinates from image."""
+    """Extract GPS coordinates from image EXIF metadata."""
     print(f"  {Colors.YELLOW}[~] Extracting GPS...{Colors.RESET}")
-    # TODO: Implement actual GPS extraction
-    return {
+    empty = {
         'has_gps': False,
         'latitude': None,
         'longitude': None,
         'altitude': None,
         'map_link': None,
     }
-
-
-def extract_strings(file_path: Path) -> List[str]:
-    """Extract strings from binary file."""
-    print(f"  {Colors.YELLOW}[~] Extracting strings...{Colors.RESET}")
-    # TODO: Implement actual strings extraction
-    strings = []
     try:
+        import exifread  # type: ignore
         with open(file_path, 'rb') as f:
-            data = f.read(1024 * 1024)  # First 1MB
-        # Simple ASCII string extraction
-        current = ''
-        for byte in data:
-            if 32 <= byte <= 126:
-                current += chr(byte)
-            else:
-                if len(current) >= 4:
-                    strings.append(current)
-                current = ''
-        if len(current) >= 4:
-            strings.append(current)
-    except Exception:
-        pass
-    return strings[:100]  # Limit to 100 strings
-
-
-def calculate_hashes(file_path: Path) -> Dict[str, str]:
-    """Calculate file hashes."""
-    print(f"  {Colors.YELLOW}[~] Calculating hashes...{Colors.RESET}")
-    import hashlib
-
-    hashes = {}
-    algorithms = ['md5', 'sha1', 'sha256', 'sha512']
-
-    try:
-        with open(file_path, 'rb') as f:
-            data = f.read()
-
-        for algo in algorithms:
-            h = hashlib.new(algo)
-            h.update(data)
-            hashes[algo] = h.hexdigest()
+            tags = exifread.process_file(f, details=False)
+    except ImportError:
+        empty['error'] = 'exifread not installed'
+        return empty
     except Exception as e:
-        hashes['error'] = str(e)
+        empty['error'] = str(e)
+        return empty
 
-    return hashes
+    lat_tag = tags.get('GPS GPSLatitude')
+    lat_ref = tags.get('GPS GPSLatitudeRef')
+    lon_tag = tags.get('GPS GPSLongitude')
+    lon_ref = tags.get('GPS GPSLongitudeRef')
 
+    if not (lat_tag and lat_ref and lon_tag and lon_ref):
+        return empty
 
-def analyze_pdf(file_path: Path) -> Dict[str, Any]:
-    """Analyze PDF file."""
-    print(f"  {Colors.YELLOW}[~] Analyzing PDF...{Colors.RESET}")
-    # TODO: Implement actual PDF analysis (PyPDF2, pdfplumber, etc.)
+    lat = _dms_to_decimal(lat_tag.values, str(lat_ref))
+    lon = _dms_to_decimal(lon_tag.values, str(lon_ref))
+    if lat is None or lon is None:
+        return empty
+
+    alt = None
+    alt_tag = tags.get('GPS GPSAltitude')
+    if alt_tag and alt_tag.values:
+        try:
+            v = alt_tag.values[0]
+            alt = round(float(v.num) / float(v.den), 2) if getattr(v, 'den', 0) else None
+        except Exception:
+            alt = None
+
     return {
-        'pages': 0,
-        'title': '',
-        'author': '',
-        'subject': '',
-        'creator': '',
-        'producer': '',
-        'creation_date': '',
-        'modification_date': '',
-        'encrypted': False,
-        'javascript': False,
-        'embedded_files': [],
+        'has_gps': True,
+        'latitude': lat,
+        'longitude': lon,
+        'altitude': alt,
+        'map_link': f"https://maps.google.com/?q={lat},{lon}",
     }
 
 
-def analyze_office(file_path: Path) -> Dict[str, Any]:
-    """Analyze Office document."""
-    print(f"  {Colors.YELLOW}[~] Analyzing Office document...{Colors.RESET}")
-    # TODO: Implement actual Office analysis (python-docx, openpyxl, etc.)
-    return {
+def extract_strings(file_path: Path, min_len: int = 4, limit: int = 100) -> List[str]:
+    """Extract printable ASCII strings from the first 1 MB of a file."""
+    print(f"  {Colors.YELLOW}[~] Extracting strings...{Colors.RESET}")
+    strings: List[str] = []
+    try:
+        with open(file_path, 'rb') as f:
+            data = f.read(1024 * 1024)
+        current: List[str] = []
+        for byte in data:
+            if 32 <= byte <= 126:
+                current.append(chr(byte))
+            else:
+                if len(current) >= min_len:
+                    strings.append(''.join(current))
+                    if len(strings) >= limit:
+                        return strings
+                current = []
+        if len(current) >= min_len and len(strings) < limit:
+            strings.append(''.join(current))
+    except Exception:
+        pass
+    return strings
+
+
+def calculate_hashes(file_path: Path) -> Dict[str, str]:
+    """Calculate file hashes by streaming in chunks."""
+    print(f"  {Colors.YELLOW}[~] Calculating hashes...{Colors.RESET}")
+    algorithms = ['md5', 'sha1', 'sha256', 'sha512']
+    hashers = {algo: hashlib.new(algo) for algo in algorithms}
+
+    try:
+        with open(file_path, 'rb') as f:
+            while True:
+                chunk = f.read(65536)
+                if not chunk:
+                    break
+                for h in hashers.values():
+                    h.update(chunk)
+        return {algo: h.hexdigest() for algo, h in hashers.items()}
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def analyze_pdf(file_path: Path) -> Dict[str, Any]:
+    """Analyze PDF metadata using PyPDF2."""
+    print(f"  {Colors.YELLOW}[~] Analyzing PDF...{Colors.RESET}")
+    try:
+        import PyPDF2  # type: ignore
+    except ImportError:
+        return {'error': 'PyPDF2 not installed'}
+
+    try:
+        with open(file_path, 'rb') as f:
+            reader = PyPDF2.PdfReader(f)
+            encrypted = bool(reader.is_encrypted)
+            pages = 0 if encrypted else len(reader.pages)
+            meta = reader.metadata or {}
+
+            # Detect JavaScript or embedded files in trailer/root
+            has_js = False
+            embedded_files: List[str] = []
+            try:
+                root = reader.trailer.get('/Root', {})
+                if hasattr(root, 'get_object'):
+                    root = root.get_object()
+                if isinstance(root, dict):
+                    names = root.get('/Names')
+                    if hasattr(names, 'get_object'):
+                        names = names.get_object()
+                    if isinstance(names, dict):
+                        if '/JavaScript' in names:
+                            has_js = True
+                        ef = names.get('/EmbeddedFiles')
+                        if hasattr(ef, 'get_object'):
+                            ef = ef.get_object()
+                        if isinstance(ef, dict) and '/Names' in ef:
+                            ef_list = ef['/Names']
+                            if hasattr(ef_list, 'get_object'):
+                                ef_list = ef_list.get_object()
+                            if isinstance(ef_list, list):
+                                embedded_files = [str(ef_list[i]) for i in range(0, len(ef_list), 2)]
+                    if '/OpenAction' in root:
+                        oa = str(root.get('/OpenAction'))
+                        if 'JavaScript' in oa or '/JS' in oa:
+                            has_js = True
+            except Exception:
+                pass
+
+            def _m(key: str) -> str:
+                val = meta.get(key)
+                return str(val) if val is not None else ''
+
+            return {
+                'pages': pages,
+                'title': _m('/Title'),
+                'author': _m('/Author'),
+                'subject': _m('/Subject'),
+                'creator': _m('/Creator'),
+                'producer': _m('/Producer'),
+                'creation_date': _m('/CreationDate'),
+                'modification_date': _m('/ModDate'),
+                'encrypted': encrypted,
+                'javascript': has_js,
+                'embedded_files': embedded_files,
+            }
+    except Exception as e:
+        return {'error': str(e)}
+
+
+def _analyze_ooxml_zip(file_path: Path) -> Dict[str, Any]:
+    """Read core/app properties directly from an OOXML (.docx/.xlsx/.pptx) zip."""
+    info: Dict[str, Any] = {
         'title': '',
         'author': '',
         'subject': '',
@@ -249,83 +391,74 @@ def analyze_office(file_path: Path) -> Dict[str, Any]:
         'created': '',
         'modified': '',
         'last_modified_by': '',
-        'revision': 0,
+        'revision': '',
         'application': '',
-        'hidden_data': False,
     }
+    with zipfile.ZipFile(file_path, 'r') as zf:
+        if 'docProps/core.xml' in zf.namelist():
+            root = ET.fromstring(zf.read('docProps/core.xml'))
+            mapping = {
+                'title': 'title',
+                'creator': 'author',
+                'subject': 'subject',
+                'keywords': 'keywords',
+                'description': 'comments',
+                'created': 'created',
+                'modified': 'modified',
+                'lastModifiedBy': 'last_modified_by',
+                'revision': 'revision',
+            }
+            for elem in root:
+                tag = elem.tag.split('}')[-1]
+                if tag in mapping and elem.text:
+                    info[mapping[tag]] = elem.text.strip()
+        if 'docProps/app.xml' in zf.namelist():
+            root = ET.fromstring(zf.read('docProps/app.xml'))
+            for elem in root:
+                tag = elem.tag.split('}')[-1]
+                if tag == 'Application' and elem.text:
+                    info['application'] = elem.text.strip()
+    return info
+
+
+def analyze_office(file_path: Path) -> Dict[str, Any]:
+    """Analyze Office document metadata (.docx, .xlsx, .pptx)."""
+    print(f"  {Colors.YELLOW}[~] Analyzing Office document...{Colors.RESET}")
+    ext = file_path.suffix.lower()
+
+    if ext in ('.doc', '.xls', '.ppt'):
+        return {'error': f'Legacy binary Office format ({ext}) not supported; convert to OOXML'}
+
+    # Try OOXML XML parsing first (works for docx, xlsx, pptx with zero extra deps)
+    try:
+        if zipfile.is_zipfile(file_path):
+            return _analyze_ooxml_zip(file_path)
+    except Exception as e:
+        return {'error': str(e)}
+
+    return {'error': 'File is not a valid OOXML archive'}
 
 
 def output_results(results: Dict[str, Any], args: argparse.Namespace):
     """Output results in specified format."""
-    if args.output:
-        if args.format == 'json':
-            with open(args.output, 'w') as f:
-                json.dump(results, f, indent=2, default=str)
-        elif args.format == 'txt':
-            with open(args.output, 'w') as f:
-                f.write(format_results_txt(results))
-        elif args.format == 'csv':
-            with open(args.output, 'w') as f:
-                f.write(format_results_csv(results))
-        print(f"\n{Colors.GREEN}[+] Results saved to {args.output}{Colors.RESET}")
-    else:
-        print(f"\n{Colors.CYAN}{'='*60}{Colors.RESET}")
-        print(format_results_txt(results))
+    _output_results(results, args, mode="file")
 
 
 def format_results_txt(results: Dict[str, Any]) -> str:
     """Format results as text."""
-    lines = []
-    for file_path, data in results.items():
-        lines.append(f"\nFile: {file_path}")
-        lines.append("-" * 50)
-        basic = data['findings'].get('basic', {})
-        lines.append(f"Size: {basic.get('size_human', 'N/A')} ({data['size']} bytes)")
-        lines.append(f"Type: {data['mime_type']}")
-        lines.append(f"Modified: {data['modified']}")
-        lines.append("")
-        lines.append(format_dict(data['findings'], indent=2))
-    return "\n".join(lines)
+    return _format_results_txt(results, mode="file")
 
 
 def format_results_csv(results: Dict[str, Any]) -> str:
     """Format results as CSV."""
-    lines = ['file,key,value']
-    for file_path, data in results.items():
-        for key, value in flatten_dict(data['findings']).items():
-            lines.append(f'"{file_path}","{key}","{value}"')
-    return "\n".join(lines)
+    return _format_results_csv(results, mode="file")
 
 
 def format_dict(d: Dict, indent: int = 0) -> str:
     """Format dictionary as indented text."""
-    lines = []
-    prefix = " " * indent
-    for k, v in d.items():
-        if isinstance(v, dict):
-            lines.append(f"{prefix}{k}:")
-            lines.append(format_dict(v, indent + 2))
-        elif isinstance(v, list):
-            lines.append(f"{prefix}{k}:")
-            for item in v:
-                if isinstance(item, dict):
-                    lines.append(format_dict(item, indent + 2))
-                else:
-                    lines.append(f"{prefix}  - {item}")
-        else:
-            lines.append(f"{prefix}{k}: {v}")
-    return "\n".join(lines)
+    return _format_dict(d, indent=indent)
 
 
 def flatten_dict(d: Dict, parent_key: str = '', sep: str = '.') -> Dict:
     """Flatten nested dictionary."""
-    items = []
-    for k, v in d.items():
-        new_key = f"{parent_key}{sep}{k}" if parent_key else k
-        if isinstance(v, dict):
-            items.extend(flatten_dict(v, new_key, sep=sep).items())
-        elif isinstance(v, list):
-            items.append((new_key, str(v)))
-        else:
-            items.append((new_key, v))
-    return dict(items)
+    return _flatten_dict(d, parent_key=parent_key, sep=sep)

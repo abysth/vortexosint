@@ -147,7 +147,7 @@ def show_banner(version: str):
             Panel(
                 f"[bold cyan]{LOGO}[/]\n"
                 f"[yellow]{TAGLINE}[/]\n"
-                f"[dim]v{version}  |  github.com/vortexosint[/dim]",
+                f"[dim]v{version}  |  github.com/abysth/vortexosint[/dim]",
                 border_style="cyan",
                 box=_box(),
                 padding=(1, 4),
@@ -156,7 +156,7 @@ def show_banner(version: str):
     else:
         print(Colors.cyan(LOGO))
         print(Colors.yellow(f"  {TAGLINE}"))
-        print(Colors.dim(f"  Version: {version}  |  https://github.com/vortexosint"))
+        print(Colors.dim(f"  Version: {version}  |  https://github.com/abysth/vortexosint"))
         print()
 
 
@@ -329,7 +329,7 @@ def pause():
 # Retro menu (paged, numbered, Kali-style prompt)
 # ---------------------------------------------------------------------------
 
-RETRO_LINK = "https://github.com/sNss-byte/vortexosint"
+RETRO_LINK = "https://github.com/abysth/vortexosint"
 
 
 def show_retro_title():

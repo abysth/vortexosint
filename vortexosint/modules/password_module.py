@@ -170,9 +170,11 @@ def generate_mode(args: argparse.Namespace) -> int:
     if not getattr(args, "no_symbols", False):
         classes.append(SYMBOLS)
 
-    pool = "".join(classes)
     if not getattr(args, "allow_ambiguous", False):
-        pool = "".join(c for c in pool if c not in AMBIGUOUS)
+        classes = ["".join(c for c in cls if c not in AMBIGUOUS) for cls in classes]
+        classes = [cls for cls in classes if cls]
+
+    pool = "".join(classes)
     if len(pool) < 8:
         ui.error("Character pool too small.")
         return 1

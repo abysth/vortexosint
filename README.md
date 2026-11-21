@@ -15,7 +15,7 @@
 
 [![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](https://github.com/vortexosint/vortexosint/releases)
+[![Version](https://img.shields.io/badge/Version-1.0.0-orange.svg)](https://github.com/abysth/vortexosint/releases)
 
 </div>
 
@@ -46,7 +46,7 @@ pip install vortexosint
 
 ### From Source
 ```bash
-git clone https://github.com/vortexosint/vortexosint.git
+git clone https://github.com/abysth/vortexosint.git
 cd vortexosint
 pip install -e .
 ```
