@@ -128,48 +128,79 @@ def divider():
 # ---------------------------------------------------------------------------
 
 LOGO = r"""
-//    ____   ____________ ____________________________________  ___
-//    \   \ /   /\_____  \\______   \__    ___/\_   _____/\   \/  /
-//     \   Y   /  /   |   \|       _/ |    |    |    __)_  \     / 
-//      \     /  /    |    \    |   \ |    |    |        \ /     \ 
-//       \___/   \_______  /____|_  / |____|   /_______  //___/\  \
-//                       \/       \/                   \/       \_/
+                     @@@         
+            @      @@@@@@@@@@@   
+          @@     @@       @@@@@@ 
+         @@    @   @@@@@@   @@   
+       @@@@     @@@@@    @@  @@  
+ @    @@@@  @ @@@@@  @@@  @  @@  
+ @    @@@  @ @@@@@@@  @@  @  @@  
+    @@@   @  @%@@@@@  @@  @  :@  
+   @@@   @  @@@@@@%  @@   @@     
+  @@@@  @@    @    @@@     @     
+  @@@   @@@      @@@@     @@     
+ @@@@    @@@@@@@@@      @@       
+ @@@@                  @@        
+  @@@@          @@   @@          
+  @@@@@@@@@@@@@    @@    @@      
+     @@@@@@@@@                   
 """
 
 TAGLINE = "Multi-tool OSINT / GEOSINT reconnaissance framework"
 
 
 def show_banner(version: str):
-    """Print the main VortexOSINT banner with a cyan-to-magenta gradient."""
+    """Print the main VortexOSINT banner with the custom vortex logo."""
+    logo_lines = [line.rstrip("\r") for line in LOGO.splitlines() if line.strip()]
+    side_info = {
+        5: ("V O R T E X   O S I N T", "bold bright_cyan"),
+        6: ("-------------------------------" if _box_is_ascii() else "───────────────────────────────", "dim bright_blue"),
+        7: ("Multi-tool OSINT / GEOSINT Suite", "bold white"),
+        8: (f"v{version}  |  7 Modules  |  33 Tools", "cyan"),
+        9: ("github.com/abysth/vortexosint", "dim magenta"),
+    }
+
     console = get_console()
     if console is not None:
         gradient = [
             "bold bright_cyan",
+            "bold bright_cyan",
+            "bold cyan",
             "bold cyan",
             "bold bright_blue",
+            "bold bright_blue",
+            "bold blue",
             "bold blue",
             "bold magenta",
+            "bold magenta",
             "bold bright_magenta",
+            "bold bright_magenta",
+            "bold magenta",
+            "bold blue",
+            "bold bright_blue",
+            "bold cyan",
         ]
         body = Text()
-        logo_lines = [line for line in LOGO.splitlines() if line.strip()]
         for i, line in enumerate(logo_lines):
-            body.append(line + "\n", style=gradient[i % len(gradient)])
-        body.append("\n")
-        body.append(f"  {TAGLINE}\n", style="bold white")
-        body.append(f"  v{version}  |  github.com/abysth/vortexosint", style="dim cyan")
+            padded = line.ljust(35)
+            body.append(padded, style=gradient[i % len(gradient)])
+            if i in side_info:
+                label, style = side_info[i]
+                body.append("  " + label, style=style)
+            if i < len(logo_lines) - 1:
+                body.append("\n")
         console.print(
             Panel(
                 body,
                 border_style="bright_blue",
                 box=_box(),
-                padding=(1, 3),
+                padding=(0, 2),
             )
         )
     else:
-        print(Colors.cyan(LOGO))
-        print(Colors.yellow(f"  {TAGLINE}"))
-        print(Colors.dim(f"  Version: {version}  |  https://github.com/abysth/vortexosint"))
+        for i, line in enumerate(logo_lines):
+            extra = f"  {side_info[i][0]}" if i in side_info else ""
+            print(Colors.cyan(line.ljust(35)) + extra)
         print()
 
 
