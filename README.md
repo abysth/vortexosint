@@ -27,15 +27,30 @@ VortexOSINT is a comprehensive command-line intelligence gathering toolkit desig
 
 ## ✨ Features
 
+VortexOSINT includes **20 specialized modules**, a **2-page interactive menu** (`79` shortcuts), and a **built-in tutorial & environment checker** (`vortexosint tuto` / `vortexosint tuto setup` — see also [TUTORIAL.md](TUTORIAL.md)).
+
 | Module | Description |
 |--------|-------------|
-| **OSINT** | Domain, email, phone, username, IP reconnaissance |
-| **GEOSINT** | IP geolocation, coordinate analysis, address geocoding, WiFi/cell tower lookup |
-| **NETWORK** | Port scanning, service detection, OS fingerprinting, ASN lookup |
-| **CRYPTO** | Blockchain address analysis, transaction tracking, entity profiling |
+| **OSINT** | Domain, email, phone, username, IP reconnaissance & Wayback Machine |
+| **GEOSINT** | IP geolocation, coordinate analysis, address geocoding, WiFi/cell tower lookup, HTML maps |
 | **SOCIAL** | Username enumeration across 50+ platforms, email/phone lookup |
-| **METADATA** | File metadata extraction (EXIF, GPS, PDF, Office docs, hashes) |
-| **PASSWORD** | Secure generation (CSPRNG), passphrases, strength audit, salted hashing |
+| **GITHUB** | GitHub profile, organizations, top repos, public SSH keys & commit emails |
+| **NETWORK** | Port scanning, service/banner detection, OS fingerprinting, ASN lookup, ping & public IP |
+| **WEB** | HTTP security headers grading (A–F), redirect chain, `robots.txt` / `sitemap.xml` / `security.txt` |
+| **TECH** | Web technology stack fingerprinter (servers, CDN/WAF, CMS, JS/CSS frameworks, cookies) |
+| **SSL** | Live SSL/TLS certificate inspection (SANs, expiry, fingerprints) & `crt.sh` Certificate Transparency |
+| **DNS** | Full DNS record dump (`A/AAAA/MX/NS/TXT/CAA/SOA`), reverse PTR & passive subdomain enumeration |
+| **EMAILSEC** | Email & DNS security audit (SPF, DMARC, DKIM, CAA) & DNS propagation check |
+| **MAC** | MAC address normalization, randomized/LAA detection & OUI vendor lookup |
+| **IOC** | IOC extractor (IPs/URLs/emails/hashes), defang/refang & public threat feeds check |
+| **URL** | URL unshortener, tracking parameter stripper (`utm_*`, `fbclid`) & heuristic phishing analyzer |
+| **DORK** | Google, GitHub & Shodan dork generator |
+| **BREACH** | Email exposure check (XposedOrNot / HIBP + Gravatar) & k-Anonymity pwned passwords check |
+| **CRYPTO** | Blockchain address analysis, transaction tracking, clustering & entity profiling |
+| **METADATA** | File metadata extraction (EXIF, GPS, PDF, Office DOCX/XLSX, binary strings, hashes) |
+| **DECODE** | Mini CyberChef CLI: Base64/Hex/URL/ROT13, JWT decoder, Hash-ID, Timestamp & CIDR calc |
+| **PASSWORD** | Secure generation (CSPRNG), passphrases, strength audit & salted hashing |
+| **REPORT** | Merge JSON scan outputs into clean HTML or Markdown intelligence reports |
 
 ## 🚀 Installation
 
@@ -58,10 +73,13 @@ pip install vortexosint[full]
 
 ## 📖 Usage
 
-### Global Options
+### Global Options & Tutorial
 ```bash
-vortexosint                        # Interactive menu (guided mode)
+vortexosint                        # Interactive 2-page menu (guided mode)
 vortexosint --menu                 # Force the interactive menu
+vortexosint tuto                   # Built-in tutorial overview (all 20 modules)
+vortexosint tuto setup             # Check Python, dependencies & .env API keys
+vortexosint tuto <module>          # Detailed guide for a module (e.g. ssl, dns, decode)
 vortexosint --help                 # Show help
 vortexosint --version              # Show version
 vortexosint --no-banner            # Disable ASCII banner
@@ -70,6 +88,8 @@ vortexosint -V                     # Verbose output
 vortexosint -o results.json        # Save output to file
 vortexosint --format json|txt|csv  # Output format
 ```
+
+> 📘 **Full step-by-step guide (FR)** : see [TUTORIAL.md](TUTORIAL.md) for prerequisites, installation, `.env` configuration, all 20 modules, and troubleshooting.
 
 ### OSINT Module
 ```bash
@@ -196,6 +216,58 @@ vortexosint password --check
 vortexosint password --hash --algo sha256
 ```
 
+### WEB, TECH, SSL, DNS & EMAILSEC Modules
+```bash
+# Web security headers grade (A-F) & well-known files
+vortexosint web --url https://example.com
+
+# Web technology stack fingerprinter
+vortexosint tech --url https://example.com
+
+# SSL/TLS certificate inspection + crt.sh Certificate Transparency
+vortexosint ssl --host example.com --ct
+
+# Full DNS dump, passive subdomains & reverse PTR
+vortexosint dns --domain example.com --subdomains
+vortexosint dns --reverse 8.8.8.8
+
+# SPF/DMARC/DKIM/CAA audit & DNS propagation
+vortexosint emailsec --domain example.com --propagation
+
+# MAC address / OUI vendor & randomization check
+vortexosint mac --mac B8:27:EB:11:22:33
+```
+
+### IOC, URL, DORK, GITHUB, BREACH, DECODE & REPORT Modules
+```bash
+# IOC extraction, defang/refang & threat check
+vortexosint ioc --extract alert.log
+vortexosint ioc --defang https://evil.com/login
+
+# URL unshortener, tracking stripper & phishing heuristic analysis
+vortexosint url --url https://bit.ly/example
+vortexosint url --url "http://192.168.1.1/login-verify" --phishing
+
+# Dork generator (Google, GitHub, Shodan)
+vortexosint dork --domain example.com --keyword secret
+
+# GitHub developer OSINT
+vortexosint github --username octocat
+
+# Email breach exposure & k-Anonymity pwned password check
+vortexosint breach --email user@example.com
+vortexosint breach --password
+
+# Offline Decode toolkit (Base64/Hex/URL/ROT13, JWT, Hash-ID, Timestamp, CIDR)
+vortexosint decode --base64 "Vm9ydGV4"
+vortexosint decode --jwt "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.sig"
+vortexosint decode --hash-id d41d8cd98f00b204e9800998ecf8427e
+vortexosint decode --cidr 192.168.1.0/24
+
+# Merge JSON results into HTML or Markdown report
+vortexosint report --input dns.json,web.json --report-out report.html
+```
+
 ## 📊 Output Formats
 
 ```bash
@@ -236,21 +308,37 @@ GITHUB_TOKEN=your_token
 vortexosint/
 ├── vortexosint/
 │   ├── __init__.py
-│   ├── cli.py              # Main CLI entry point
+│   ├── __main__.py
+│   ├── cli.py                  # Main CLI entry point & 2-page interactive menu
 │   ├── core/
-│   │   ├── __init__.py
-│   │   ├── colors.py       # Terminal colors
-│   │   ├── banner.py       # ASCII banners
-│   │   └── ui.py           # rich UI (tables, panels, prompts)
+│   │   ├── banner.py           # ASCII banners
+│   │   ├── colors.py           # Terminal colors
+│   │   ├── output.py           # JSON / TXT / CSV export
+│   │   ├── tutorial.py         # Built-in tutorial & environment checker
+│   │   └── ui.py               # Rich UI (tables, panels, prompts)
 │   └── modules/
-│       ├── __init__.py
 │       ├── osint_module.py
 │       ├── geosint_module.py
-│       ├── network_module.py
-│       ├── crypto_module.py
 │       ├── social_module.py
+│       ├── github_module.py
+│       ├── network_module.py
+│       ├── web_module.py
+│       ├── tech_module.py
+│       ├── ssl_module.py
+│       ├── dns_module.py
+│       ├── emailsec_module.py
+│       ├── mac_module.py
+│       ├── ioc_module.py
+│       ├── url_module.py
+│       ├── dork_module.py
+│       ├── breach_module.py
+│       ├── crypto_module.py
 │       ├── metadata_module.py
-│       └── password_module.py
+│       ├── decode_module.py
+│       ├── password_module.py
+│       └── report_module.py
+├── tests/                      # Pytest unit test suite
+├── TUTORIAL.md                 # Complete French user guide (A to Z)
 ├── pyproject.toml
 ├── requirements.txt
 └── README.md
