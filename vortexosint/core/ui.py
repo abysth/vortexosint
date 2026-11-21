@@ -140,17 +140,30 @@ TAGLINE = "Multi-tool OSINT / GEOSINT reconnaissance framework"
 
 
 def show_banner(version: str):
-    """Print the main VortexOSINT banner."""
+    """Print the main VortexOSINT banner with a cyan-to-magenta gradient."""
     console = get_console()
     if console is not None:
+        gradient = [
+            "bold bright_cyan",
+            "bold cyan",
+            "bold bright_blue",
+            "bold blue",
+            "bold magenta",
+            "bold bright_magenta",
+        ]
+        body = Text()
+        logo_lines = [line for line in LOGO.splitlines() if line.strip()]
+        for i, line in enumerate(logo_lines):
+            body.append(line + "\n", style=gradient[i % len(gradient)])
+        body.append("\n")
+        body.append(f"  {TAGLINE}\n", style="bold white")
+        body.append(f"  v{version}  |  github.com/abysth/vortexosint", style="dim cyan")
         console.print(
             Panel(
-                f"[bold cyan]{LOGO}[/]\n"
-                f"[yellow]{TAGLINE}[/]\n"
-                f"[dim]v{version}  |  github.com/abysth/vortexosint[/dim]",
-                border_style="cyan",
+                body,
+                border_style="bright_blue",
                 box=_box(),
-                padding=(1, 4),
+                padding=(1, 3),
             )
         )
     else:
@@ -166,9 +179,9 @@ def show_module_header(name: str, description: str):
     if console is not None:
         console.print(
             Panel(
-                f"[dim]{description}[/dim]",
-                title=f"[bold cyan]{name.upper()}[/]",
-                border_style="cyan",
+                f"[white]{description}[/white]",
+                title=f"[bold bright_cyan]{name.upper()}[/]",
+                border_style="bright_blue",
                 box=_box(),
                 padding=(0, 2),
             )
@@ -333,14 +346,14 @@ RETRO_LINK = "https://github.com/abysth/vortexosint"
 
 
 def show_retro_title():
-    """Centered title block, blue shades."""
+    """Centered title block with cyan/magenta accents."""
     console = get_console()
     if console is not None:
         width = console.width or 80
         console.print("VortexOSINT Multi-Tool".center(width),
-                      style="bold bright_blue", markup=False, highlight=False)
+                      style="bold bright_cyan", markup=False, highlight=False)
         console.print(f"[{RETRO_LINK}]".center(width),
-                      style="blue", markup=False, highlight=False)
+                      style="dim magenta", markup=False, highlight=False)
     else:
         print(Colors.colorize("VortexOSINT Multi-Tool".center(70),
                               Colors.BOLD + Colors.BRIGHT_BLUE))
@@ -399,24 +412,29 @@ def show_retro_page(title, columns):
 
 
 def show_retro_nav(has_next, has_back):
-    """Red navigation hints under the page."""
+    """Navigation hints under the menu."""
     parts = []
     if has_back:
         parts.append("[B] Back")
     if has_next:
         parts.append("[N] Next")
+    parts.append("[M] Menu")
     parts.append("[E] Exit")
     line = "  |- " + " | ".join(parts)
     console = get_console()
     if console is not None:
-        console.print(line, style="blue", markup=False, highlight=False)
+        console.print(line, style="dim bright_cyan", markup=False, highlight=False)
     else:
         print(Colors.blue(line))
 
 
 def retro_input():
-    """Blue prompt. Returns stripped input, or None on EOF."""
-    prompt = f"{Colors.BRIGHT_BLUE}(vortex)-[~/menu]$ {Colors.RESET}"
+    """Styled prompt. Returns stripped input, or None on EOF."""
+    prompt = (
+        f"{Colors.BRIGHT_BLUE}({Colors.BOLD}{Colors.BRIGHT_CYAN}vortex"
+        f"{Colors.RESET}{Colors.BRIGHT_BLUE})-[{Colors.MAGENTA}~/menu"
+        f"{Colors.BRIGHT_BLUE}]$ {Colors.RESET}"
+    )
     try:
         return input(prompt).strip()
     except EOFError:
@@ -424,7 +442,7 @@ def retro_input():
 
 
 def show_retro_single(groups):
-    """Single-page menu in blue: framed panel (rich) or ASCII box (fallback)."""
+    """Single-page menu: framed panel (rich) with high-contrast colors, or ASCII box (fallback)."""
     console = get_console()
     if console is None:
         width = 74
@@ -438,18 +456,30 @@ def show_retro_single(groups):
                 print("|" + line.ljust(width) + "|")
         print("+" + "-" * width + "+")
         return
+    header_colors = {
+        "MODULES": "bold bright_cyan",
+        "NETWORK": "bold green",
+        "OSINT": "bold cyan",
+        "GEOSINT": "bold bright_blue",
+        "CRYPTO": "bold yellow",
+        "SOCIAL": "bold magenta",
+        "METADATA": "bold blue",
+        "PASSWORD": "bold bright_red",
+    }
     body = Text()
     first = True
     for header, cells in groups:
         if not first:
             body.append("\n")
         first = False
-        body.append(f"-- {header} --\n", style="bold blue")
+        h_style = header_colors.get(header.upper(), "bold bright_cyan")
+        body.append(f"-- {header} --\n", style=h_style)
         for i in range(0, len(cells), 3):
             for num, label in cells[i:i + 3]:
-                body.append("  [")
-                body.append(num, style="bold cyan")
-                body.append(f"] {label[:17]}".ljust(24), style="bright_blue")
+                body.append("  [", style="dim")
+                body.append(num, style="bold bright_cyan")
+                body.append("] ", style="dim")
+                body.append(f"{label[:17]}".ljust(20), style="white")
             body.append("\n")
-    console.print(Panel(body, title="TOOLS", border_style="blue",
+    console.print(Panel(body, title="[bold bright_cyan]TOOLS[/]", border_style="bright_blue",
                         box=_box(), padding=(0, 2)))

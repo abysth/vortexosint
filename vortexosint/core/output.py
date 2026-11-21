@@ -122,6 +122,60 @@ def format_results_csv(results: Dict[str, Any], mode: str = "target") -> str:
     return buf.getvalue().rstrip("\n")
 
 
+def _print_rich_results(results: Dict[str, Any], mode: str = "target") -> bool:
+    """Render results with rich styling when available. Returns False in plain mode."""
+    from vortexosint.core import ui
+    console = ui.get_console()
+    if console is None:
+        return False
+
+    from rich.panel import Panel
+    from rich.text import Text
+
+    def _append_dict(text: Text, d: Dict[str, Any], indent: int = 0):
+        prefix = " " * indent
+        for k, v in d.items():
+            if isinstance(v, dict):
+                text.append(f"{prefix}{k}:\n", style="bold bright_cyan")
+                _append_dict(text, v, indent + 2)
+            elif isinstance(v, list):
+                text.append(f"{prefix}{k}:\n", style="bold bright_cyan")
+                for item in v:
+                    if isinstance(item, dict):
+                        _append_dict(text, item, indent + 2)
+                    else:
+                        text.append(f"{prefix}  - ", style="dim")
+                        text.append(f"{item}\n", style="white")
+            else:
+                text.append(f"{prefix}{k}: ", style="cyan")
+                val_str = str(v)
+                val_style = "green" if v is True else ("red" if v is False else "white")
+                text.append(f"{val_str}\n", style=val_style)
+
+    for key, data in results.items():
+        body = Text()
+        if mode == "category":
+            title = f"[bold bright_cyan]{key.upper()}[/]"
+            if isinstance(data, dict):
+                _append_dict(body, data, indent=0)
+            else:
+                body.append(str(data), style="white")
+        elif mode == "file":
+            title = f"[bold bright_cyan]{key}[/]"
+            findings = data.get("findings", {}) if isinstance(data, dict) else {}
+            _append_dict(body, findings, indent=0)
+        else:
+            t_type = data.get("type", "result") if isinstance(data, dict) else "result"
+            title = f"[bold bright_cyan]{key}[/] [dim]({t_type})[/]"
+            payload = data.get("findings", data) if isinstance(data, dict) else {"value": data}
+            if isinstance(payload, dict):
+                _append_dict(body, payload, indent=0)
+            else:
+                body.append(str(payload), style="white")
+        console.print(Panel(body, title=title, border_style="bright_blue", box=ui._box(), padding=(0, 2)))
+    return True
+
+
 def output_results(results: Dict[str, Any], args: argparse.Namespace, mode: str = "target") -> None:
     """Print results to stdout or save them to args.output in JSON/TXT/CSV format."""
     output_path = getattr(args, "output", None)
@@ -142,5 +196,6 @@ def output_results(results: Dict[str, Any], args: argparse.Namespace, mode: str 
         except OSError as e:
             print(f"\n{Colors.RED}[!] Failed to write {output_path}: {e}{Colors.RESET}")
     else:
-        print(f"\n{Colors.CYAN}{'=' * 60}{Colors.RESET}")
-        print(format_results_txt(results, mode=mode))
+        if not _print_rich_results(results, mode=mode):
+            print(f"\n{Colors.CYAN}{'=' * 60}{Colors.RESET}")
+            print(format_results_txt(results, mode=mode))
