@@ -8,9 +8,16 @@ Available modules:
 - crypto: Cryptocurrency intelligence
 - social: Social media intelligence
 - metadata: File metadata extraction
+- password: Secure passwords, passphrases & audits
+- web: Web security headers & well-known files audit
+- emailsec: Email & DNS security (SPF/DMARC/DKIM/CAA/propagation)
+- ioc: IOC extraction, defang/refang & threat intel
+- dork: Google/GitHub/Shodan dork generator
+- github: GitHub developer OSINT
+- decode: Encoding, JWT, Hash-ID, Timestamp & CIDR toolkit
+- report: HTML / Markdown report generator
 """
 
-# Import all modules to make them available
 from vortexosint.modules import (
     osint_module,
     geosint_module,
@@ -18,7 +25,14 @@ from vortexosint.modules import (
     crypto_module,
     social_module,
     metadata_module,
-    password_module
+    password_module,
+    web_module,
+    emailsec_module,
+    ioc_module,
+    dork_module,
+    github_module,
+    decode_module,
+    report_module,
 )
 
 __all__ = [
@@ -29,4 +43,11 @@ __all__ = [
     'social_module',
     'metadata_module',
     'password_module',
+    'web_module',
+    'emailsec_module',
+    'ioc_module',
+    'dork_module',
+    'github_module',
+    'decode_module',
+    'report_module',
 ]

@@ -271,9 +271,47 @@ MODULES = {
         "description": "Secure passwords, passphrases & audits",
         "example": "password --length 20 --count 5",
     },
+    "web": {
+        "label": "WEB",
+        "description": "Security headers grade, robots/security.txt",
+        "example": "web --url https://example.com",
+    },
+    "emailsec": {
+        "label": "EMAILSEC",
+        "description": "SPF, DMARC, DKIM, CAA & DNS propagation",
+        "example": "emailsec --domain example.com",
+    },
+    "ioc": {
+        "label": "IOC",
+        "description": "IOC extractor, defang/refang & threat intel",
+        "example": "ioc --extract logs.txt",
+    },
+    "dork": {
+        "label": "DORK",
+        "description": "Google, GitHub & Shodan dork generator",
+        "example": "dork --domain example.com",
+    },
+    "github": {
+        "label": "GITHUB",
+        "description": "GitHub profile, repos, SSH keys & commits",
+        "example": "github --username octocat",
+    },
+    "decode": {
+        "label": "DECODE",
+        "description": "Base64/Hex/URL, JWT, Hash-ID, Timestamp, CIDR",
+        "example": "decode --cidr 192.168.1.0/24",
+    },
+    "report": {
+        "label": "REPORT",
+        "description": "HTML / Markdown report from JSON outputs",
+        "example": "report --input results.json -o report.html",
+    },
 }
 
-MODULE_ORDER = ["osint", "geosint", "network", "crypto", "social", "metadata", "password"]
+MODULE_ORDER = [
+    "osint", "geosint", "network", "crypto", "social", "metadata", "password",
+    "web", "emailsec", "ioc", "dork", "github", "decode", "report",
+]
 
 
 def show_modules_table():

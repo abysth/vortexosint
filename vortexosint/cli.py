@@ -52,7 +52,14 @@ from vortexosint.modules import (
     crypto_module,
     social_module,
     metadata_module,
-    password_module
+    password_module,
+    web_module,
+    emailsec_module,
+    ioc_module,
+    dork_module,
+    github_module,
+    decode_module,
+    report_module,
 )
 
 MODULE_HANDLERS = {
@@ -63,6 +70,13 @@ MODULE_HANDLERS = {
     'social': social_module.run,
     'metadata': metadata_module.run,
     'password': password_module.run,
+    'web': web_module.run,
+    'emailsec': emailsec_module.run,
+    'ioc': ioc_module.run,
+    'dork': dork_module.run,
+    'github': github_module.run,
+    'decode': decode_module.run,
+    'report': report_module.run,
 }
 
 # Single-page retro menu: (kind, ref, label) — kind is "module" (guided flow)
@@ -75,7 +89,14 @@ MENU_PAGES = [
                      ("module", "crypto", "Crypto Intel"),
                      ("module", "social", "Social Tracker"),
                      ("module", "metadata", "Metadata"),
-                     ("module", "password", "Password Toolkit")]),
+                     ("module", "password", "Password Toolkit"),
+                     ("module", "web", "Web Audit"),
+                     ("module", "emailsec", "Email/DNS Sec"),
+                     ("module", "ioc", "IOC / Threat"),
+                     ("module", "dork", "Dork Generator"),
+                     ("module", "github", "GitHub OSINT"),
+                     ("module", "decode", "Decode Toolkit"),
+                     ("module", "report", "HTML/MD Report")]),
         ("NETWORK", [("quick", "n_myip", "Show My IP"),
                      ("quick", "n_ping", "IP Pinger"),
                      ("quick", "n_ports", "Port Scanner"),
@@ -93,14 +114,23 @@ MENU_PAGES = [
                      ("quick", "g_addr", "Forward Geocode"),
                      ("quick", "g_wifi", "WiFi Lookup"),
                      ("quick", "g_cell", "Cell Lookup")]),
-        ("CRYPTO", [("quick", "c_addr", "Address Intel"),
-                    ("quick", "c_tx", "Transaction Intel"),
-                    ("quick", "c_entity", "Entity Search")]),
-        ("SOCIAL", [("quick", "s_user", "Username Tracker"),
-                    ("quick", "s_email", "Email Tracker"),
-                    ("quick", "s_phone", "Phone Tracker")]),
-        ("METADATA", [("quick", "m_file", "File Analysis"),
-                      ("quick", "m_dir", "Directory Batch")]),
+        ("WEB / EMAILSEC", [("quick", "w_audit", "Web Sec Audit"),
+                            ("quick", "e_sec", "SPF/DMARC/DKIM"),
+                            ("quick", "e_prop", "DNS Propagation")]),
+        ("IOC / DORK / GH", [("quick", "i_extract", "IOC Extractor"),
+                             ("quick", "i_check", "IOC Threat Check"),
+                             ("quick", "d_gen", "Dork Generator"),
+                             ("quick", "gh_user", "GitHub User")]),
+        ("CRYPTO / SOCIAL", [("quick", "c_addr", "Address Intel"),
+                             ("quick", "c_tx", "Transaction Intel"),
+                             ("quick", "s_user", "Username Tracker"),
+                             ("quick", "s_email", "Email Tracker")]),
+        ("META / DECODE", [("quick", "m_file", "File Analysis"),
+                           ("quick", "m_dir", "Directory Batch"),
+                           ("quick", "dec_jwt", "JWT Decoder"),
+                           ("quick", "dec_hash", "Hash Identifier"),
+                           ("quick", "dec_cidr", "CIDR Calc"),
+                           ("quick", "rep_gen", "Build Report")]),
         ("PASSWORD", [("quick", "p_gen", "Quick Pass Gen"),
                       ("quick", "p_phrase", "Passphrase"),
                       ("quick", "p_check", "Password Audit"),
@@ -193,6 +223,42 @@ QUICK_SPECS = {
     "p_hash": {"module": "password", "base": ["password", "--hash"],
                "prompts": [("algo", "choice", "--algo", "Algorithme",
                             (["sha256", "sha512", "sha3_256"], "sha256"))]},
+    "w_audit": {"module": "web", "base": ["web"],
+                "prompts": [("url", "text", "--url", "URL ou domaine", "")],
+                "require": ["url"]},
+    "e_sec": {"module": "emailsec", "base": ["emailsec"],
+              "prompts": [("domain", "text", "--domain", "Domaine", "")],
+              "require": ["domain"]},
+    "e_prop": {"module": "emailsec", "base": ["emailsec", "--propagation"],
+               "prompts": [("domain", "text", "--domain", "Domaine", "")],
+               "require": ["domain"]},
+    "i_extract": {"module": "ioc", "base": ["ioc"],
+                  "prompts": [("source", "text", "--extract", "Fichier ou texte", "")],
+                  "require": ["source"]},
+    "i_check": {"module": "ioc", "base": ["ioc"],
+                "prompts": [("ioc", "text", "--check", "Hash, URL ou domaine", "")],
+                "require": ["ioc"]},
+    "d_gen": {"module": "dork", "base": ["dork"],
+              "prompts": [("domain", "text", "--domain", "Domaine", ""),
+                          ("engine", "choice", "--engine", "Moteur",
+                           (["all", "google", "github", "shodan"], "all"))],
+              "require": ["domain"]},
+    "gh_user": {"module": "github", "base": ["github"],
+                "prompts": [("user", "text", "--username", "Pseudo GitHub", "")],
+                "require": ["user"]},
+    "dec_jwt": {"module": "decode", "base": ["decode"],
+                "prompts": [("jwt", "text", "--jwt", "Token JWT", "")],
+                "require": ["jwt"]},
+    "dec_hash": {"module": "decode", "base": ["decode"],
+                 "prompts": [("h", "text", "--hash-id", "Hash a identifier", "")],
+                 "require": ["h"]},
+    "dec_cidr": {"module": "decode", "base": ["decode"],
+                 "prompts": [("cidr", "text", "--cidr", "CIDR (ex: 192.168.1.0/24)", "")],
+                 "require": ["cidr"]},
+    "rep_gen": {"module": "report", "base": ["report"],
+                "prompts": [("inp", "text", "--input", "Fichier(s) JSON", ""),
+                            ("out", "text", "--report-out", "Sortie (.html/.md)", "vortexosint_report.html")],
+                "require": ["inp"]},
 }
 
 
@@ -438,6 +504,65 @@ class VortexOSINT:
                                  default='sha256', help='Hash algorithm (default: sha256)')
         pass_parser.add_argument('--salt', type=str, default=None,
                                  help='Salt (default: random 16 bytes hex)')
+
+        # Web Module
+        web_parser = subparsers.add_parser('web', help='Web security headers & files audit',
+                                           formatter_class=ColoredHelpFormatter)
+        web_parser.add_argument('--url', '-u', type=str, help='Target URL or domain')
+        web_parser.add_argument('--headers', action='store_true', help='Audit HTTP security headers')
+        web_parser.add_argument('--files', action='store_true', help='Check robots.txt, sitemap.xml, security.txt')
+        web_parser.add_argument('--redirects', action='store_true', help='Show redirect chain')
+        web_parser.add_argument('--timeout', type=int, default=12, help='Request timeout (default: 12)')
+
+        # EmailSec Module
+        esec_parser = subparsers.add_parser('emailsec', help='Email & DNS security (SPF/DMARC/DKIM)',
+                                            formatter_class=ColoredHelpFormatter)
+        esec_parser.add_argument('--domain', '-d', type=str, help='Target domain')
+        esec_parser.add_argument('--selectors', type=str, default=None, help='Comma-separated DKIM selectors')
+        esec_parser.add_argument('--propagation', action='store_true', help='Check DNS A propagation across public resolvers')
+
+        # IOC / Threat Intel Module
+        ioc_parser = subparsers.add_parser('ioc', help='IOC extraction, defang & threat intel',
+                                           formatter_class=ColoredHelpFormatter)
+        ioc_parser.add_argument('--extract', '-x', type=str, help='File path or inline text to extract IOCs from')
+        ioc_parser.add_argument('--check', '-c', type=str, help='Check hash, URL or host against public threat feeds')
+        ioc_parser.add_argument('--defang', type=str, help='Defang URL/IP/domain')
+        ioc_parser.add_argument('--refang', type=str, help='Refang indicator')
+
+        # Dork Module
+        dork_parser = subparsers.add_parser('dork', help='Google, GitHub & Shodan dork generator',
+                                            formatter_class=ColoredHelpFormatter)
+        dork_parser.add_argument('--domain', '-d', type=str, help='Target domain')
+        dork_parser.add_argument('--keyword', '-k', type=str, help='Additional keyword')
+        dork_parser.add_argument('--engine', choices=['all', 'google', 'github', 'shodan'], default='all',
+                                 help='Search engine (default: all)')
+
+        # GitHub OSINT Module
+        gh_parser = subparsers.add_parser('github', help='GitHub developer OSINT',
+                                          formatter_class=ColoredHelpFormatter)
+        gh_parser.add_argument('--username', '-u', type=str, help='GitHub username')
+
+        # Decode Module
+        dec_parser = subparsers.add_parser('decode', help='Encoding, JWT, Hash-ID, Timestamp & CIDR',
+                                           formatter_class=ColoredHelpFormatter)
+        dec_parser.add_argument('--base64', type=str, default=None, help='Decode/encode Base64')
+        dec_parser.add_argument('--hex', type=str, default=None, help='Decode/encode Hex')
+        dec_parser.add_argument('--url', type=str, default=None, help='Decode/encode URL')
+        dec_parser.add_argument('--rot13', type=str, default=None, help='Apply ROT13')
+        dec_parser.add_argument('--encode', action='store_true', help='Encode instead of decode')
+        dec_parser.add_argument('--jwt', type=str, default=None, help='Decode a JWT token')
+        dec_parser.add_argument('--hash-id', type=str, default=None, help='Identify probable hash algorithm')
+        dec_parser.add_argument('--timestamp', type=str, default=None, help='Convert Unix timestamp <-> UTC ISO')
+        dec_parser.add_argument('--cidr', type=str, default=None, help='Calculate CIDR subnet details')
+
+        # Report Module
+        rep_parser = subparsers.add_parser('report', help='Generate HTML/Markdown report from JSON',
+                                           formatter_class=ColoredHelpFormatter)
+        rep_parser.add_argument('--input', '-i', type=str, help='Comma-separated JSON input files')
+        rep_parser.add_argument('--report-out', dest='output', type=str, default=None,
+                                help='Output report file (.html or .md)')
+        rep_parser.add_argument('--title', type=str, default='VortexOSINT Intelligence Report',
+                                help='Report title')
 
         return parser
 
@@ -789,6 +914,63 @@ class VortexOSINT:
                 m.no_uppercase = not ui.ask_yes_no("Inclure les majuscules ?", True)
                 m.allow_ambiguous = ui.ask_yes_no("Autoriser 0O1lI ?", False)
                 m.words, m.separator, m.algo, m.salt = 5, "-", "sha256", None
+        elif key == 'web':
+            m.url = ui.ask("URL ou domaine", "") or None
+            if not m.url:
+                ui.error("Aucune cible — retour au menu.")
+                return None
+            m.headers = ui.ask_yes_no("Audit des headers de sécurité ?", True)
+            m.files = ui.ask_yes_no("Vérifier robots.txt / security.txt ?", True)
+            m.redirects = ui.ask_yes_no("Afficher la chaîne de redirections ?", True)
+            m.timeout = self._ask_int("Timeout (s)", 12)
+        elif key == 'emailsec':
+            m.domain = ui.ask("Domaine", "") or None
+            if not m.domain:
+                ui.error("Aucun domaine — retour au menu.")
+                return None
+            m.selectors = ui.ask("Sélecteurs DKIM (vide = défaut)", "") or None
+            m.propagation = ui.ask_yes_no("Vérifier la propagation DNS ?", True)
+        elif key == 'ioc':
+            m.extract = ui.ask("Fichier ou texte à extraire (vide = ignorer)", "") or None
+            m.check = ui.ask("IOC à vérifier (hash/URL/domaine, vide = ignorer)", "") or None
+            m.defang = ui.ask("Texte à defang (vide = ignorer)", "") or None
+            m.refang = ui.ask("Texte à refang (vide = ignorer)", "") or None
+            if not any([m.extract, m.check, m.defang, m.refang]):
+                ui.error("Aucune entrée — retour au menu.")
+                return None
+        elif key == 'dork':
+            m.domain = ui.ask("Domaine (vide = ignorer)", "") or None
+            m.keyword = ui.ask("Mot-clé (vide = ignorer)", "") or None
+            if not any([m.domain, m.keyword]):
+                ui.error("Aucune cible — retour au menu.")
+                return None
+            m.engine = ui.ask_choice("Moteur", ["all", "google", "github", "shodan"], "all")
+        elif key == 'github':
+            m.username = ui.ask("Pseudo GitHub", "") or None
+            if not m.username:
+                ui.error("Aucun pseudo — retour au menu.")
+                return None
+        elif key == 'decode':
+            action = ui.ask_choice("Outil", ["base64", "hex", "url", "rot13", "jwt", "hash-id", "timestamp", "cidr"], "base64")
+            m.base64 = m.hex = m.url = m.rot13 = m.jwt = m.hash_id = m.timestamp = m.cidr = None
+            m.encode = False
+            val = ui.ask("Valeur", "")
+            if not val:
+                ui.error("Valeur vide — retour au menu.")
+                return None
+            if action in ("base64", "hex", "url"):
+                m.encode = ui.ask_yes_no("Encoder (non = décoder) ?", False)
+                setattr(m, action, val)
+            elif action == "hash-id":
+                m.hash_id = val
+            else:
+                setattr(m, action, val)
+        elif key == 'report':
+            m.input = ui.ask("Fichier(s) JSON (séparés par virgule)", "") or None
+            if not m.input:
+                ui.error("Aucun fichier — retour au menu.")
+                return None
+            m.title = ui.ask("Titre du rapport", "VortexOSINT Intelligence Report") or "VortexOSINT Intelligence Report"
         return m
 
 
