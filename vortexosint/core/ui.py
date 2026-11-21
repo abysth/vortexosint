@@ -159,39 +159,55 @@ TAGLINE = "Multi-tool OSINT / GEOSINT reconnaissance framework"
 
 
 def show_banner(version: str):
-    """Print the main VortexOSINT banner with unified cyan/blue colors."""
+    """Print the main VortexOSINT banner with vortex art side-by-side with VORTEX text."""
     art_lines = [line.rstrip("\r") for line in VORTEX_ART.splitlines() if line.strip()]
     logo_lines = [line.rstrip("\r") for line in LOGO.splitlines() if line.strip()]
-    banner_width = max(len(l) for l in logo_lines)
+    art_w = max(len(l) for l in art_lines)
+    logo_w = max(len(l) for l in logo_lines)
+
+    right_block = (
+        [(l, "bold bright_cyan") for l in logo_lines]
+        + [("", "")]
+        + [(TAGLINE.center(logo_w), "bold white")]
+        + [(f"v{version}  |  github.com/abysth/vortexosint".center(logo_w), "dim cyan")]
+    )
+    start_row = max(0, (len(art_lines) - len(right_block)) // 2)
 
     console = get_console()
     if console is not None:
+        side_by_side = (console.width or 120) >= (art_w + logo_w + 10)
         body = Text()
-        for line in art_lines:
-            body.append(line.center(banner_width) + "\n", style="bold cyan")
-        body.append("\n")
-        for line in logo_lines:
-            body.append(line + "\n", style="bold bright_cyan")
-        body.append("\n")
-        body.append(f"{TAGLINE}".center(banner_width) + "\n", style="bold white")
-        body.append(
-            f"v{version}  |  github.com/abysth/vortexosint".center(banner_width),
-            style="dim cyan",
-        )
+        if side_by_side:
+            for i, line in enumerate(art_lines):
+                body.append(line.ljust(art_w), style="bold cyan")
+                r_idx = i - start_row
+                if 0 <= r_idx < len(right_block):
+                    r_text, r_style = right_block[r_idx]
+                    if r_text:
+                        body.append("   " + r_text, style=r_style)
+                if i < len(art_lines) - 1:
+                    body.append("\n")
+        else:
+            for line in art_lines:
+                body.append(line.center(logo_w) + "\n", style="bold cyan")
+            body.append("\n")
+            for idx, (r_text, r_style) in enumerate(right_block):
+                suffix = "\n" if idx < len(right_block) - 1 else ""
+                body.append(r_text + suffix, style=r_style)
         console.print(
             Panel(
                 body,
                 border_style="bright_blue",
                 box=_box(),
-                padding=(1, 3),
+                padding=(0, 2),
+                expand=False,
             )
         )
     else:
-        for line in art_lines:
-            print(Colors.cyan(line.center(banner_width)))
-        print(Colors.cyan(LOGO))
-        print(Colors.cyan(f"  {TAGLINE}"))
-        print(Colors.dim(f"  Version: {version}  |  https://github.com/abysth/vortexosint"))
+        for i, line in enumerate(art_lines):
+            r_idx = i - start_row
+            extra = f"   {right_block[r_idx][0]}" if 0 <= r_idx < len(right_block) and right_block[r_idx][0] else ""
+            print(Colors.cyan(line.ljust(art_w)) + extra)
         print()
 
 
