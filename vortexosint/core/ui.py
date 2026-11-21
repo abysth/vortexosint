@@ -306,11 +306,42 @@ MODULES = {
         "description": "HTML / Markdown report from JSON outputs",
         "example": "report --input results.json -o report.html",
     },
+    "ssl": {
+        "label": "SSL",
+        "description": "SSL/TLS cert inspector & crt.sh transparency",
+        "example": "ssl --host example.com --ct",
+    },
+    "dns": {
+        "label": "DNS",
+        "description": "Full DNS records, reverse PTR & subdomains",
+        "example": "dns --domain example.com --subdomains",
+    },
+    "mac": {
+        "label": "MAC",
+        "description": "MAC address / OUI vendor & randomization check",
+        "example": "mac --mac B8:27:EB:11:22:33",
+    },
+    "url": {
+        "label": "URL",
+        "description": "URL unshortener, tracker strip & phishing check",
+        "example": "url --url https://bit.ly/example",
+    },
+    "breach": {
+        "label": "BREACH",
+        "description": "Email exposure, Gravatar & pwned passwords",
+        "example": "breach --email user@example.com",
+    },
+    "tech": {
+        "label": "TECH",
+        "description": "Web technology stack fingerprinter",
+        "example": "tech --url https://example.com",
+    },
 }
 
 MODULE_ORDER = [
     "osint", "geosint", "network", "crypto", "social", "metadata", "password",
     "web", "emailsec", "ioc", "dork", "github", "decode", "report",
+    "ssl", "dns", "mac", "url", "breach", "tech",
 ]
 
 
@@ -487,13 +518,18 @@ def show_retro_page(title, columns):
     print("+" + "+".join(["-" * col_w] * ncols) + "+")
 
 
-def show_retro_nav(has_next, has_back):
+def show_retro_nav(has_next, has_back, page_idx=0, total_pages=1):
     """Navigation hints under the menu."""
     parts = []
+    if total_pages > 1:
+        parts.append(f"Page {page_idx + 1}/{total_pages}")
     if has_back:
         parts.append("[B] Back")
     if has_next:
         parts.append("[N] Next")
+    if total_pages > 1:
+        parts.append(f"[P1-P{total_pages}] Jump")
+    parts.append("[T] Tuto")
     parts.append("[M] Menu")
     parts.append("[E] Exit")
     line = "  |- " + " | ".join(parts)
@@ -504,11 +540,12 @@ def show_retro_nav(has_next, has_back):
         print(Colors.blue(line))
 
 
-def retro_input():
+def retro_input(page_idx=None, total_pages=1):
     """Unified cyan/blue prompt. Returns stripped input, or None on EOF."""
+    loc = f"~/page-{page_idx + 1}" if (page_idx is not None and total_pages > 1) else "~/menu"
     prompt = (
         f"{Colors.BRIGHT_BLUE}({Colors.BOLD}{Colors.BRIGHT_CYAN}vortex"
-        f"{Colors.RESET}{Colors.BRIGHT_BLUE})-[{Colors.CYAN}~/menu"
+        f"{Colors.RESET}{Colors.BRIGHT_BLUE})-[{Colors.CYAN}{loc}"
         f"{Colors.BRIGHT_BLUE}]$ {Colors.RESET}"
     )
     try:
@@ -517,11 +554,14 @@ def retro_input():
         return None
 
 
-def show_retro_single(groups):
-    """Single-page menu in unified cyan/blue/white: framed panel (rich) or ASCII box (fallback)."""
+def show_retro_single(groups, title="TOOLS", page_idx=0, total_pages=1):
+    """Render one menu page in unified cyan/blue/white: framed panel (rich) or ASCII box (fallback)."""
+    panel_title = f"PAGE {page_idx + 1}/{total_pages} — {title}" if total_pages > 1 else title
     console = get_console()
     if console is None:
         width = 74
+        print("+" + "-" * width + "+")
+        print(f"| {panel_title.center(width - 2)} |")
         print("+" + "-" * width + "+")
         for header, cells in groups:
             print(f"| -- {header} --".ljust(width + 1) + "|")
@@ -540,11 +580,12 @@ def show_retro_single(groups):
         first = False
         body.append(f"-- {header} --\n", style="bold bright_cyan")
         for i in range(0, len(cells), 3):
-            for num, label in cells[i:i + 3]:
+            for idx_in_row, (num, label) in enumerate(cells[i:i + 3]):
                 body.append("  [", style="dim cyan")
                 body.append(num, style="bold cyan")
                 body.append("] ", style="dim cyan")
-                body.append(f"{label[:17]}".ljust(20), style="white")
+                trimmed = label[:16]
+                body.append(trimmed.ljust(17) if idx_in_row < 2 else trimmed, style="white")
             body.append("\n")
-    console.print(Panel(body, title="[bold bright_cyan]TOOLS[/]", border_style="bright_blue",
+    console.print(Panel(body, title=f"[bold bright_cyan]{panel_title}[/]", border_style="bright_blue",
                         box=_box(), padding=(0, 2)))

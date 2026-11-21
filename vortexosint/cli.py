@@ -45,6 +45,7 @@ except ImportError:
 from vortexosint.core import ui
 from vortexosint.core.banner import print_banner
 from vortexosint.core.colors import Colors
+from vortexosint.core.tutorial import show_tutorial
 from vortexosint.modules import (
     osint_module,
     geosint_module,
@@ -60,6 +61,12 @@ from vortexosint.modules import (
     github_module,
     decode_module,
     report_module,
+    ssl_module,
+    dns_module,
+    mac_module,
+    url_module,
+    breach_module,
+    tech_module,
 )
 
 MODULE_HANDLERS = {
@@ -77,64 +84,99 @@ MODULE_HANDLERS = {
     'github': github_module.run,
     'decode': decode_module.run,
     'report': report_module.run,
+    'ssl': ssl_module.run,
+    'dns': dns_module.run,
+    'mac': mac_module.run,
+    'url': url_module.run,
+    'breach': breach_module.run,
+    'tech': tech_module.run,
 }
 
-# Single-page retro menu: (kind, ref, label) — kind is "module" (guided flow)
+# Multi-page retro menu (2 pages): (kind, ref, label) — kind is "module" (guided flow)
 # or "quick" (qid from QUICK_SPECS below).
 MENU_PAGES = [
-    {"title": "TOOLS", "cols": [
+    {"title": "RECON, OSINT & NETWORK", "cols": [
         ("MODULES", [("module", "osint", "OSINT Scan"),
                      ("module", "geosint", "Geospatial"),
-                     ("module", "network", "Network Scan"),
-                     ("module", "crypto", "Crypto Intel"),
                      ("module", "social", "Social Tracker"),
-                     ("module", "metadata", "Metadata"),
-                     ("module", "password", "Password Toolkit"),
-                     ("module", "web", "Web Audit"),
-                     ("module", "emailsec", "Email/DNS Sec"),
-                     ("module", "ioc", "IOC / Threat"),
-                     ("module", "dork", "Dork Generator"),
                      ("module", "github", "GitHub OSINT"),
+                     ("module", "network", "Network Scan"),
+                     ("module", "web", "Web Audit"),
+                     ("module", "tech", "Tech Fingerprint"),
+                     ("module", "ssl", "SSL/TLS Audit"),
+                     ("module", "dns", "DNS Toolkit"),
+                     ("module", "emailsec", "Email/DNS Sec"),
+                     ("module", "mac", "MAC / OUI Intel")]),
+        ("OSINT / GEO / SOCIAL", [("quick", "o_domain", "Domain Recon"),
+                                  ("quick", "o_email", "Email Intel"),
+                                  ("quick", "o_phone", "Phone Intel"),
+                                  ("quick", "o_user", "Username Search"),
+                                  ("quick", "o_ip", "IP Intel"),
+                                  ("quick", "o_wayback", "Wayback URLs"),
+                                  ("quick", "g_ip", "IP Geolocation"),
+                                  ("quick", "g_coords", "Reverse Geocode"),
+                                  ("quick", "g_addr", "Forward Geocode"),
+                                  ("quick", "g_wifi", "WiFi Lookup"),
+                                  ("quick", "g_cell", "Cell Lookup"),
+                                  ("quick", "s_user", "Social User"),
+                                  ("quick", "s_email", "Social Email"),
+                                  ("quick", "s_phone", "Social Phone"),
+                                  ("quick", "gh_user", "GitHub User")]),
+        ("NET / WEB / DNS", [("quick", "n_myip", "Show My IP"),
+                             ("quick", "n_ping", "IP Pinger"),
+                             ("quick", "n_ports", "Port Scanner"),
+                             ("quick", "n_service", "Service Detect"),
+                             ("quick", "n_os", "OS Detect"),
+                             ("quick", "n_asn", "ASN Lookup"),
+                             ("quick", "mac_lookup", "MAC Vendor"),
+                             ("quick", "w_audit", "Web Sec Audit"),
+                             ("quick", "tech_scan", "Tech Stack"),
+                             ("quick", "ssl_cert", "SSL/TLS Cert"),
+                             ("quick", "ssl_ct", "CT Subdomains"),
+                             ("quick", "dns_records", "DNS Records"),
+                             ("quick", "dns_rev", "Reverse DNS"),
+                             ("quick", "dns_sub", "Subdomain Find"),
+                             ("quick", "e_sec", "SPF/DMARC/DKIM"),
+                             ("quick", "e_prop", "DNS Propagation")]),
+    ]},
+    {"title": "THREAT, CRYPTO, FORENSICS & UTILS", "cols": [
+        ("MODULES", [("module", "ioc", "IOC / Threat"),
+                     ("module", "url", "URL / Phishing"),
+                     ("module", "dork", "Dork Generator"),
+                     ("module", "breach", "Breach Check"),
+                     ("module", "crypto", "Crypto Intel"),
+                     ("module", "metadata", "Metadata"),
                      ("module", "decode", "Decode Toolkit"),
+                     ("module", "password", "Password Toolkit"),
                      ("module", "report", "HTML/MD Report")]),
-        ("NETWORK", [("quick", "n_myip", "Show My IP"),
-                     ("quick", "n_ping", "IP Pinger"),
-                     ("quick", "n_ports", "Port Scanner"),
-                     ("quick", "n_service", "Service Detect"),
-                     ("quick", "n_os", "OS Detect"),
-                     ("quick", "n_asn", "ASN Lookup")]),
-        ("OSINT", [("quick", "o_domain", "Domain Recon"),
-                   ("quick", "o_email", "Email Intel"),
-                   ("quick", "o_phone", "Phone Intel"),
-                   ("quick", "o_user", "Username Search"),
-                   ("quick", "o_ip", "IP Intel"),
-                   ("quick", "o_wayback", "Wayback URLs")]),
-        ("GEOSINT", [("quick", "g_ip", "IP Geolocation"),
-                     ("quick", "g_coords", "Reverse Geocode"),
-                     ("quick", "g_addr", "Forward Geocode"),
-                     ("quick", "g_wifi", "WiFi Lookup"),
-                     ("quick", "g_cell", "Cell Lookup")]),
-        ("WEB / EMAILSEC", [("quick", "w_audit", "Web Sec Audit"),
-                            ("quick", "e_sec", "SPF/DMARC/DKIM"),
-                            ("quick", "e_prop", "DNS Propagation")]),
-        ("IOC / DORK / GH", [("quick", "i_extract", "IOC Extractor"),
-                             ("quick", "i_check", "IOC Threat Check"),
-                             ("quick", "d_gen", "Dork Generator"),
-                             ("quick", "gh_user", "GitHub User")]),
-        ("CRYPTO / SOCIAL", [("quick", "c_addr", "Address Intel"),
-                             ("quick", "c_tx", "Transaction Intel"),
-                             ("quick", "s_user", "Username Tracker"),
-                             ("quick", "s_email", "Email Tracker")]),
-        ("META / DECODE", [("quick", "m_file", "File Analysis"),
-                           ("quick", "m_dir", "Directory Batch"),
-                           ("quick", "dec_jwt", "JWT Decoder"),
-                           ("quick", "dec_hash", "Hash Identifier"),
-                           ("quick", "dec_cidr", "CIDR Calc"),
-                           ("quick", "rep_gen", "Build Report")]),
-        ("PASSWORD", [("quick", "p_gen", "Quick Pass Gen"),
-                      ("quick", "p_phrase", "Passphrase"),
-                      ("quick", "p_check", "Password Audit"),
-                      ("quick", "p_hash", "Hash Password")]),
+        ("IOC, URL & BREACH", [("quick", "i_extract", "IOC Extractor"),
+                               ("quick", "i_check", "IOC Threat Check"),
+                               ("quick", "i_defang", "Defang IOC"),
+                               ("quick", "i_refang", "Refang IOC"),
+                               ("quick", "url_expand", "URL Unshortener"),
+                               ("quick", "url_phish", "Phishing Check"),
+                               ("quick", "br_email", "Email Breach"),
+                               ("quick", "br_pass", "Pwned Password"),
+                               ("quick", "d_gen", "Dork Generator")]),
+        ("CRYPTO & METADATA", [("quick", "c_addr", "Crypto Address"),
+                               ("quick", "c_tx", "Crypto TX"),
+                               ("quick", "c_entity", "Crypto Entity"),
+                               ("quick", "m_file", "File Analysis"),
+                               ("quick", "m_dir", "Directory Batch"),
+                               ("quick", "m_gps", "Image EXIF/GPS"),
+                               ("quick", "m_strings", "Binary Strings"),
+                               ("quick", "rep_gen", "Build Report")]),
+        ("DECODE & PASSWORD", [("quick", "dec_b64", "Base64 Decode"),
+                               ("quick", "dec_hex", "Hex Decode"),
+                               ("quick", "dec_url", "URL Decode"),
+                               ("quick", "dec_jwt", "JWT Decoder"),
+                               ("quick", "dec_hash", "Hash Identifier"),
+                               ("quick", "dec_ts", "Timestamp Conv"),
+                               ("quick", "dec_cidr", "CIDR Calc"),
+                               ("quick", "p_gen", "Quick Pass Gen"),
+                               ("quick", "p_phrase", "Passphrase"),
+                               ("quick", "p_check", "Password Audit"),
+                               ("quick", "p_hash", "Hash Password")]),
     ]},
 ]
 
@@ -259,6 +301,65 @@ QUICK_SPECS = {
                 "prompts": [("inp", "text", "--input", "Fichier(s) JSON", ""),
                             ("out", "text", "--report-out", "Sortie (.html/.md)", "vortexosint_report.html")],
                 "require": ["inp"]},
+    "ssl_cert": {"module": "ssl", "base": ["ssl"],
+                 "prompts": [("host", "text", "--host", "Domaine ou hote", ""),
+                             ("port", "int", "--port", "Port TLS", 443)],
+                 "require": ["host"]},
+    "ssl_ct": {"module": "ssl", "base": ["ssl", "--ct"],
+               "prompts": [("host", "text", "--host", "Domaine", "")],
+               "require": ["host"]},
+    "dns_records": {"module": "dns", "base": ["dns"],
+                    "prompts": [("domain", "text", "--domain", "Domaine", "")],
+                    "require": ["domain"]},
+    "dns_rev": {"module": "dns", "base": ["dns"],
+                "prompts": [("ip", "text", "--reverse", "Adresse IP", "")],
+                "require": ["ip"]},
+    "dns_sub": {"module": "dns", "base": ["dns", "--subdomains"],
+                "prompts": [("domain", "text", "--domain", "Domaine", "")],
+                "require": ["domain"]},
+    "mac_lookup": {"module": "mac", "base": ["mac"],
+                   "prompts": [("mac", "text", "--mac", "Adresse MAC (ex: B8:27:EB:11:22:33)", "")],
+                   "require": ["mac"]},
+    "url_expand": {"module": "url", "base": ["url", "--expand"],
+                   "prompts": [("url", "text", "--url", "URL raccourcie", "")],
+                   "require": ["url"]},
+    "url_phish": {"module": "url", "base": ["url", "--phishing"],
+                  "prompts": [("url", "text", "--url", "URL a analyser", "")],
+                  "require": ["url"]},
+    "br_email": {"module": "breach", "base": ["breach"],
+                 "prompts": [("email", "text", "--email", "Adresse email", "")],
+                 "require": ["email"]},
+    "br_pass": {"module": "breach", "base": ["breach", "--password"], "prompts": []},
+    "tech_scan": {"module": "tech", "base": ["tech"],
+                  "prompts": [("url", "text", "--url", "URL ou domaine", "")],
+                  "require": ["url"]},
+    "i_defang": {"module": "ioc", "base": ["ioc"],
+                 "prompts": [("val", "text", "--defang", "URL/IP/domaine a defang", "")],
+                 "require": ["val"]},
+    "i_refang": {"module": "ioc", "base": ["ioc"],
+                 "prompts": [("val", "text", "--refang", "IOC a refang", "")],
+                 "require": ["val"]},
+    "m_gps": {"module": "metadata", "base": ["metadata", "--gps", "--exif"],
+              "prompts": [("fichier", "text", "--file", "Image (JPG/PNG/TIFF)", "")],
+              "require": ["fichier"]},
+    "m_strings": {"module": "metadata", "base": ["metadata", "--strings"],
+                  "prompts": [("fichier", "text", "--file", "Fichier binaire", "")],
+                  "require": ["fichier"]},
+    "dec_b64": {"module": "decode", "base": ["decode"],
+                "prompts": [("val", "text", "--base64", "Texte Base64", ""),
+                            ("enc", "confirm", "--encode", "Encoder (non = decoder) ?", False)],
+                "require": ["val"]},
+    "dec_hex": {"module": "decode", "base": ["decode"],
+                "prompts": [("val", "text", "--hex", "Texte Hex", ""),
+                            ("enc", "confirm", "--encode", "Encoder (non = decoder) ?", False)],
+                "require": ["val"]},
+    "dec_url": {"module": "decode", "base": ["decode"],
+                "prompts": [("val", "text", "--url", "Texte URL", ""),
+                            ("enc", "confirm", "--encode", "Encoder (non = decoder) ?", False)],
+                "require": ["val"]},
+    "dec_ts": {"module": "decode", "base": ["decode"],
+               "prompts": [("ts", "text", "--timestamp", "Timestamp Unix ou date ISO", "")],
+               "require": ["ts"]},
 }
 
 
@@ -564,6 +665,56 @@ class VortexOSINT:
         rep_parser.add_argument('--title', type=str, default='VortexOSINT Intelligence Report',
                                 help='Report title')
 
+        # SSL/TLS Module
+        ssl_parser = subparsers.add_parser('ssl', help='SSL/TLS certificate & crt.sh inspector',
+                                           formatter_class=ColoredHelpFormatter)
+        ssl_parser.add_argument('--host', '-H', type=str, help='Target hostname or domain')
+        ssl_parser.add_argument('--port', '-p', type=int, default=443, help='TLS port (default: 443)')
+        ssl_parser.add_argument('--ct', action='store_true', help='Query crt.sh Certificate Transparency logs')
+        ssl_parser.add_argument('--timeout', type=int, default=10, help='Socket timeout (default: 10)')
+
+        # DNS Module
+        dns_parser = subparsers.add_parser('dns', help='Full DNS records, reverse PTR & subdomains',
+                                           formatter_class=ColoredHelpFormatter)
+        dns_parser.add_argument('--domain', '-d', type=str, help='Target domain')
+        dns_parser.add_argument('--reverse', '-r', type=str, help='IP address for reverse PTR lookup')
+        dns_parser.add_argument('--subdomains', '-s', action='store_true',
+                                help='Passive subdomain enumeration (crt.sh + HackerTarget)')
+
+        # MAC / OUI Module
+        mac_parser = subparsers.add_parser('mac', help='MAC address / OUI vendor & randomization lookup',
+                                           formatter_class=ColoredHelpFormatter)
+        mac_parser.add_argument('--mac', '-m', type=str, help='MAC address (AA:BB:CC:DD:EE:FF)')
+        mac_parser.add_argument('--offline', action='store_true', help='Use local OUI table only')
+
+        # URL / Phishing Module
+        url_parser = subparsers.add_parser('url', help='URL unshortener, tracker strip & phishing check',
+                                           formatter_class=ColoredHelpFormatter)
+        url_parser.add_argument('--url', '-u', type=str, help='Target URL')
+        url_parser.add_argument('--expand', action='store_true', help='Follow redirects to unshorten URL')
+        url_parser.add_argument('--phishing', action='store_true', help='Run phishing heuristic analysis')
+        url_parser.add_argument('--timeout', type=int, default=10, help='Request timeout (default: 10)')
+
+        # Breach Module
+        br_parser = subparsers.add_parser('breach', help='Email exposure, Gravatar & pwned passwords',
+                                          formatter_class=ColoredHelpFormatter)
+        br_parser.add_argument('--email', '-e', type=str, help='Email address to check for breaches')
+        br_parser.add_argument('--password', nargs='?', const='__prompt__', default=None,
+                               metavar='PASSWORD',
+                               help='Check password via HIBP k-Anonymity (no value = hidden prompt)')
+
+        # Tech Fingerprinter Module
+        tech_parser = subparsers.add_parser('tech', help='Web technology stack fingerprinter',
+                                            formatter_class=ColoredHelpFormatter)
+        tech_parser.add_argument('--url', '-u', type=str, help='Target URL or domain')
+        tech_parser.add_argument('--timeout', type=int, default=12, help='Request timeout (default: 12)')
+
+        # Built-in Tutorial
+        tuto_parser = subparsers.add_parser('tuto', help='Interactive tutorial on how to use all tools',
+                                            formatter_class=ColoredHelpFormatter)
+        tuto_parser.add_argument('topic', nargs='?', default=None,
+                                 help='Module name (e.g. ssl, osint, decode) or "all"')
+
         return parser
 
     # ------------------------------------------------------------------
@@ -614,6 +765,8 @@ class VortexOSINT:
 
     def _route_module(self) -> int:
         """Route to the appropriate module handler (direct CLI mode)."""
+        if self.args.module == 'tuto':
+            return show_tutorial(getattr(self.args, 'topic', None))
         handler = MODULE_HANDLERS.get(self.args.module)
         if handler:
             return handler(self.args)
@@ -714,17 +867,31 @@ class VortexOSINT:
         ui.divider()
         return 0
 
-    def _interactive_loop(self) -> int:
-        """Single-page retro menu loop. Returns when the user quits."""
-        ui.show_retro_title()
-        cols = self._numbered_page(0)
+    def _render_menu_page(self, page_idx: int):
+        """Display one page of MENU_PAGES with navigation hints."""
+        total = len(MENU_PAGES)
+        page_idx = max(0, min(page_idx, total - 1))
+        cols = self._numbered_page(page_idx)
+        title = MENU_PAGES[page_idx]["title"]
         ui.show_retro_single(
             [(header, [(num, label) for num, _k, _r, label in cells])
-             for header, cells in cols])
-        ui.show_retro_nav(False, False)
+             for header, cells in cols],
+            title=title,
+            page_idx=page_idx,
+            total_pages=total,
+        )
+        ui.show_retro_nav(page_idx < total - 1, page_idx > 0,
+                          page_idx=page_idx, total_pages=total)
+
+    def _interactive_loop(self) -> int:
+        """Multi-page retro menu loop. Returns when the user quits."""
+        total = len(MENU_PAGES)
+        page_idx = 0
+        ui.show_retro_title()
+        self._render_menu_page(page_idx)
         while True:
             try:
-                raw = ui.retro_input()
+                raw = ui.retro_input(page_idx=page_idx, total_pages=total)
             except KeyboardInterrupt:
                 print()
                 return 0
@@ -735,15 +902,44 @@ class VortexOSINT:
             if token in ("e", "exit", "q", "quit", "0"):
                 print("A bientot.")
                 return 0
+            if token in ("n", "next", "+"):
+                if page_idx < total - 1:
+                    page_idx += 1
+                    self._render_menu_page(page_idx)
+                else:
+                    ui.info(f"Deja sur la derniere page ({total}/{total}).")
+                continue
+            if token in ("b", "back", "p", "prev", "-"):
+                if page_idx > 0:
+                    page_idx -= 1
+                    self._render_menu_page(page_idx)
+                else:
+                    ui.info("Deja sur la premiere page (1).")
+                continue
+            if len(token) >= 2 and token[0] == "p" and token[1:].isdigit():
+                target_page = int(token[1:]) - 1
+                if 0 <= target_page < total:
+                    page_idx = target_page
+                    self._render_menu_page(page_idx)
+                else:
+                    ui.warning(f"Page invalide — choisis entre P1 et P{total}.")
+                continue
             if token in ("menu", "list", "m", "l"):
-                cols = self._numbered_page(0)
-                ui.show_retro_single(
-                    [(header, [(num, label) for num, _k, _r, label in cells])
-                     for header, cells in cols])
+                self._render_menu_page(page_idx)
+                continue
+            if token in ("t", "tuto", "tutorial", "help", "?") or token.startswith(("tuto ", "help ")):
+                parts = token.split(None, 1)
+                topic = parts[1] if len(parts) > 1 else None
+                show_tutorial(topic)
+                if topic is None:
+                    pick = ui.ask("Voir le tuto d'un module precis (ex: ssl, dns, all — vide = retour)", "")
+                    if pick:
+                        show_tutorial(pick)
+                ui.divider()
                 continue
             found = self._find_entry(token)
             if found is None:
-                print("Choix inconnu — numero, nom, menu, E.")
+                print(f"Choix inconnu — numero, nom, N/B, P1-P{total}, T (tuto), M, E.")
                 continue
             kind, ref = found
             try:
@@ -971,6 +1167,49 @@ class VortexOSINT:
                 ui.error("Aucun fichier — retour au menu.")
                 return None
             m.title = ui.ask("Titre du rapport", "VortexOSINT Intelligence Report") or "VortexOSINT Intelligence Report"
+        elif key == 'ssl':
+            m.host = ui.ask("Domaine ou hôte", "") or None
+            if not m.host:
+                ui.error("Aucun hôte — retour au menu.")
+                return None
+            m.port = self._ask_int("Port TLS", 443)
+            m.ct = ui.ask_yes_no("Inclure les logs Certificate Transparency (crt.sh) ?", True)
+            m.timeout = self._ask_int("Timeout (s)", 10)
+        elif key == 'dns':
+            m.domain = ui.ask("Domaine (vide = ignorer)", "") or None
+            m.reverse = ui.ask("IP pour Reverse DNS (vide = ignorer)", "") or None
+            if not any([m.domain, m.reverse]):
+                ui.error("Aucune cible — retour au menu.")
+                return None
+            m.subdomains = ui.ask_yes_no("Énumérer les sous-domaines (passif) ?", False) if m.domain else False
+        elif key == 'mac':
+            m.mac = ui.ask("Adresse MAC", "") or None
+            if not m.mac:
+                ui.error("Aucune MAC — retour au menu.")
+                return None
+            m.offline = ui.ask_yes_no("Mode hors-ligne uniquement ?", False)
+        elif key == 'url':
+            m.url = ui.ask("URL cible", "") or None
+            if not m.url:
+                ui.error("Aucune URL — retour au menu.")
+                return None
+            m.expand = ui.ask_yes_no("Suivre les redirections (unshortener) ?", True)
+            m.phishing = ui.ask_yes_no("Analyse heuristique phishing ?", True)
+            m.timeout = self._ask_int("Timeout (s)", 10)
+        elif key == 'breach':
+            from vortexosint.modules.breach_module import PROMPT_SENTINEL
+            m.email = ui.ask("Email à vérifier (vide = ignorer)", "") or None
+            check_pwd = ui.ask_yes_no("Vérifier un mot de passe (k-Anonymity HIBP) ?", False)
+            m.password = PROMPT_SENTINEL if check_pwd else None
+            if not any([m.email, m.password]):
+                ui.error("Aucune cible — retour au menu.")
+                return None
+        elif key == 'tech':
+            m.url = ui.ask("URL ou domaine", "") or None
+            if not m.url:
+                ui.error("Aucune cible — retour au menu.")
+                return None
+            m.timeout = self._ask_int("Timeout (s)", 12)
         return m
 
 

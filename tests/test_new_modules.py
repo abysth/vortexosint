@@ -142,3 +142,151 @@ def test_cli_routes_new_modules():
         rc = app.run(["--no-banner", "--no-color", "decode", "--cidr", "10.0.0.0/24"])
     assert rc == 0
     assert "254" in buf.getvalue()
+
+
+def test_ssl_parse_cert_dict():
+    from vortexosint.modules import ssl_module
+
+    fake_cert = {
+        "subject": ((("commonName", "example.com"),),),
+        "issuer": ((("organizationName", "Let's Encrypt"),),),
+        "subjectAltName": (("DNS", "example.com"), ("DNS", "www.example.com")),
+        "notBefore": "Jan  1 00:00:00 2024 GMT",
+        "notAfter": "Dec 31 23:59:59 2099 GMT",
+        "serialNumber": "1234ABCD",
+    }
+    parsed = ssl_module.parse_cert_dict(fake_cert, b"fake-der", protocol="TLSv1.3", cipher=("TLS_AES_256_GCM_SHA384", "TLSv1.3", 256))
+    assert parsed["common_name"] == "example.com"
+    assert parsed["san_count"] == 2
+    assert parsed["expired"] is False
+    assert parsed["tls_version"] == "TLSv1.3"
+    assert len(parsed["sha256_fingerprint"]) == 64
+
+
+def test_mac_module_analysis():
+    from vortexosint.modules import mac_module
+
+    pi = mac_module.analyze_mac("b8-27-eb-11-22-33", online=False)
+    assert pi["valid"] is True
+    assert pi["mac_colon"] == "B8:27:EB:11:22:33"
+    assert pi["is_randomized"] is False
+    assert "Raspberry Pi" in pi["vendor"]
+
+    rand_mac = mac_module.analyze_mac("02:11:22:33:44:55", online=False)
+    assert rand_mac["valid"] is True
+    assert rand_mac["is_randomized"] is True
+
+    bad = mac_module.analyze_mac("not-a-mac", online=False)
+    assert bad["valid"] is False
+
+
+def test_url_phishing_and_tracking_strip():
+    from vortexosint.modules import url_module
+
+    clean = url_module.clean_tracking_params("https://example.com/page?id=42&utm_source=x&fbclid=abc")
+    assert clean["cleaned_url"] == "https://example.com/page?id=42"
+    assert set(clean["removed_params"]) == {"utm_source", "fbclid"}
+
+    risky = url_module.analyze_phishing_heuristics("http://192.168.1.1/login-verify-paypal")
+    assert risky["risk_level"] == "HIGH"
+    assert risky["risk_score"] >= 50
+
+    safe = url_module.analyze_phishing_heuristics("https://example.com/about")
+    assert safe["risk_level"] == "LOW"
+
+
+def test_tech_fingerprint_response():
+    from vortexosint.modules import tech_module
+
+    headers = {"Server": "cloudflare", "X-Powered-By": "Express", "CF-Ray": "abc123"}
+    html = "<html><head><title>Demo</title></head><body><script src='/wp-content/app.js'></script><script src='https://js.stripe.com/v3/'></script></body></html>"
+    res = tech_module.fingerprint_response(headers, html, cookies=["PHPSESSID"])
+    assert res["page_title"] == "Demo"
+    assert "Cloudflare" in res["technologies"]["CDN/WAF"]
+    assert "WordPress" in res["technologies"]["CMS"]
+    assert "Stripe" in res["technologies"]["Payments"]
+    assert "PHP" in res["technologies"]["Language"]
+
+
+def test_breach_pwned_password_mocked(monkeypatch):
+    import hashlib
+    from vortexosint.modules import breach_module
+
+    sha1 = hashlib.sha1(b"password123").hexdigest().upper()
+    suffix = sha1[5:]
+
+    class FakeResp:
+        status_code = 200
+        text = f"00000000000000000000000000000000000:1\n{suffix}:98765\n"
+
+    import requests
+    monkeypatch.setattr(requests, "get", lambda *a, **kw: FakeResp())
+    res = breach_module.check_pwned_password("password123")
+    assert res["pwned"] is True
+    assert res["occurrences"] == 98765
+
+
+def test_dns_passive_subdomains_mocked(monkeypatch):
+    from vortexosint.modules import dns_module
+
+    class FakeResp:
+        def __init__(self, status_code, payload=None, text=""):
+            self.status_code = status_code
+            self._payload = payload
+            self.text = text
+
+        def json(self):
+            return self._payload
+
+    def fake_get(url, **kw):
+        if "crt.sh" in url:
+            return FakeResp(200, [{"name_value": "*.api.example.com\nwww.example.com"}])
+        if "hackertarget" in url:
+            return FakeResp(200, text="mail.example.com,1.2.3.4\n")
+        return FakeResp(404)
+
+    import requests
+    monkeypatch.setattr(requests, "get", fake_get)
+    res = dns_module.enumerate_subdomains_passive("example.com")
+    assert res["count"] == 3
+    assert set(res["subdomains"]) == {"api.example.com", "www.example.com", "mail.example.com"}
+
+
+def test_multipage_menu_and_quick_specs():
+    from vortexosint.cli import MENU_PAGES, QUICK_SPECS, MODULE_HANDLERS
+
+    assert len(MENU_PAGES) == 2
+    app = VortexOSINT()
+    idx = app._menu_index()
+    # Every quick ref in MENU_PAGES exists in QUICK_SPECS (or o_wayback) and every module exists in MODULE_HANDLERS
+    for _num, kind, ref, _label in idx:
+        if kind == "module":
+            assert ref in MODULE_HANDLERS
+        else:
+            assert ref == "o_wayback" or ref in QUICK_SPECS
+
+    # CLI routing for a new offline module (mac)
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = app.run(["--no-banner", "--no-color", "mac", "--mac", "B8:27:EB:AA:BB:CC", "--offline"])
+    assert rc == 0
+    assert "Raspberry Pi" in buf.getvalue()
+
+
+def test_builtin_tutorial_covers_all_modules():
+    from vortexosint.cli import MODULE_HANDLERS
+    from vortexosint.core.tutorial import TUTORIALS
+
+    assert set(MODULE_HANDLERS.keys()).issubset(set(TUTORIALS.keys()))
+    app = VortexOSINT()
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        rc = app.run(["--no-banner", "--no-color", "tuto", "ssl"])
+    assert rc == 0
+    assert "crt.sh" in buf.getvalue()
+
+    buf2 = io.StringIO()
+    with contextlib.redirect_stdout(buf2):
+        rc2 = app.run(["--no-banner", "--no-color", "tuto", "setup"])
+    assert rc2 == 0
+    assert "Python" in buf2.getvalue()

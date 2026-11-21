@@ -16,6 +16,12 @@ Available modules:
 - github: GitHub developer OSINT
 - decode: Encoding, JWT, Hash-ID, Timestamp & CIDR toolkit
 - report: HTML / Markdown report generator
+- ssl: SSL/TLS certificate inspection & crt.sh transparency
+- dns: DNS record dump, reverse PTR & passive subdomains
+- mac: MAC address / OUI vendor & randomization lookup
+- url: URL unshortener, tracking stripper & phishing analysis
+- breach: Email breach check, Gravatar & k-Anonymity pwned passwords
+- tech: Web technology fingerprinter (server, CDN, CMS, frameworks)
 """
 
 from vortexosint.modules import (
@@ -33,6 +39,12 @@ from vortexosint.modules import (
     github_module,
     decode_module,
     report_module,
+    ssl_module,
+    dns_module,
+    mac_module,
+    url_module,
+    breach_module,
+    tech_module,
 )
 
 __all__ = [
@@ -50,4 +62,10 @@ __all__ = [
     'github_module',
     'decode_module',
     'report_module',
+    'ssl_module',
+    'dns_module',
+    'mac_module',
+    'url_module',
+    'breach_module',
+    'tech_module',
 ]
