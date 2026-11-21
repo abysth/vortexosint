@@ -200,7 +200,7 @@ def show_banner(version: str):
                 border_style="bright_blue",
                 box=_box(),
                 padding=(0, 2),
-                expand=False,
+                expand=True,
             )
         )
     else:
